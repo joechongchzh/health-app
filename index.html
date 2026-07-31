@@ -322,11 +322,7 @@ canvas.chart{width:100%; height:auto; display:block;}
       <div class="ct"><span class="cico"><svg viewBox="0 0 24 24"><path d="M12 3.5s5.5 5 5.5 9.5a5.5 5.5 0 0 1-11 0C6.5 8.5 12 3.5 12 3.5z"/></svg></span>
         <span class="t">每日缺口</span><span class="r">近14天</span></div>
       <canvas class="chart" id="deficitChart" width="660" height="270"></canvas>
-      <div class="legend">
-        <span><span class="d" style="background:var(--p)"></span>合适 10-22%</span>
-        <span><span class="d" style="background:var(--amber)"></span>偏小或偏大</span>
-        <span><span class="d" style="background:var(--red)"></span>盈余</span>
-      </div>
+      <div class="legend" id="defLegend"></div>
     </div>
     <div class="card">
       <div class="ct"><span class="cico gray"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 4.5V3h6v1.5M8.5 10.5h7M8.5 14.5h4.5"/></svg></span>
@@ -351,8 +347,11 @@ canvas.chart{width:100%; height:auto; display:block;}
       <div><label class="f">当前体重 kg</label><input id="setWeight" type="number" step="0.1" inputmode="decimal"></div></div>
       <div class="row"><div><label class="f">出生日期</label><input id="setBirth" type="date"></div>
       <div><label class="f">体脂率 %（可选）</label><input id="setBf" type="number" step="0.1" inputmode="decimal"></div></div>
+      <div class="row"><div><label class="f">性别</label><select id="setGender"><option value="m">男</option><option value="f">女</option></select></div>
+      <div><label class="f">目标</label><select id="setGoal"><option value="cut">减脂 · 热量缺口</option><option value="recomp">塑形 · 热量平衡</option><option value="bulk">增肌 · 热量盈余</option></select></div></div>
       <label class="f">日常活动系数（久坐办公 1.25-1.35）</label><input id="setAct" type="number" step="0.05" inputmode="decimal">
       <div class="profcalc" id="profCalc"></div>
+      <div class="hint" id="profScheme" style="margin-top:10px;"></div>
       <button class="btn" style="margin-top:14px;" onclick="saveProfile()">保存档案</button>
     </div>
     <div class="card">
@@ -361,6 +360,7 @@ canvas.chart{width:100%; height:auto; display:block;}
       <label class="f">用户名</label><input id="ghOwner" placeholder="joechongchzh">
       <label class="f">仓库名（私有）</label><input id="ghRepo" placeholder="health-data">
       <label class="f">Fine-grained Token</label><input id="ghToken" type="password" placeholder="github_pat_...">
+      <label class="f">数据文件名（多人共用仓库时各用自己的，如 zhang.json）</label><input id="ghPath" placeholder="data.json">
       <button class="btn ghost" style="margin-top:14px;" onclick="doSync()">立即同步</button>
       <div class="hint" style="margin-top:10px;">配置后每次记录自动后台同步；"待估算"的食物同步后由电脑端 Claude 补全并自动回填。</div>
     </div>
@@ -607,6 +607,8 @@ function load(){
   try{ d = JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){}
   if(!d) d = {};
   d.profile = d.profile || {height:177, birth:'2000-11-02', weight:90, bodyfat:null, activity:1.3};
+  if(!d.profile.gender) d.profile.gender = 'm';
+  if(!d.profile.goal) d.profile.goal = 'cut';
   d.days = d.days || {};
   d.weights = d.weights || [{d:'2026-07-31', kg:90}];
   d.pending = d.pending || [];
@@ -653,16 +655,39 @@ function toast(msg, action){
 }
 
 /* ================= 配额与分餐 ================= */
+const GOALS = {cut:'减脂', recomp:'塑形', bulk:'增肌'};
 function cardioKcal(day){ return day.workouts.filter(w=>w.kind==='cardio').reduce((s,w)=>s+w.kcal,0); }
+// 配额方案：g/kg体系（源自饮食原则/指导纲要），按性别·体重·BMI·目标生成
+function quotaScheme(){
+  const pr = D.profile;
+  const bmi = pr.weight/((pr.height/100)**2);
+  const pF = pr.goal==='bulk' ? 1.8 : 1.6;
+  const fF = pr.gender==='f' ? 1.0 : 0.8;
+  let cTrain, cRest;
+  if(pr.goal==='bulk'){ cTrain=4.0; cRest=3.0; }
+  else if(pr.goal==='recomp'){ cTrain=3.5; cRest=2.5; }
+  else { // 减脂：大体重(BMI≥28)代谢率偏低，标准配额缺口不足，下调起始碳水
+    if(bmi>=28){ cTrain=2.7; cRest=2.0; } else { cTrain=3.0; cRest=2.5; }
+  }
+  return {pF, fF, cTrain, cRest};
+}
 function quotas(day){
   const w = D.profile.weight;
-  const p = Math.round(1.6*w), f = Math.round(0.8*w);
+  const s = quotaScheme();
+  const p = Math.round(s.pF*w), f = Math.round(s.fF*w);
   let c;
-  if(day.type==='train') c = 2.7*w;
-  else if(day.type==='cardio') c = 2.0*w + cardioKcal(day)/4;
-  else c = 2.0*w;
+  if(day.type==='train') c = s.cTrain*w;
+  else if(day.type==='cardio') c = s.cRest*w + cardioKcal(day)/4;
+  else c = s.cRest*w;
   c = Math.round(c);
   return {c, p, f, kcal: c*4+p*4+f*9};
+}
+// 各目标的健康缺口区间（缺口% = (消耗-摄入)/消耗；负值=盈余）
+function goalBand(){
+  const g = D.profile.goal;
+  if(g==='bulk') return [-15,-5];
+  if(g==='recomp') return [-5,8];
+  return [10,22];
 }
 function mealPlan(day){
   if(day.type==='train'){
@@ -741,15 +766,17 @@ function renderToday(){
   const defPct = burn ? Math.round(deficit/burn*100) : 0;
 
   drawRing(intake.kcal, burn);
+  const [lo,hi] = goalBand();
+  const goalName = GOALS[D.profile.goal];
   let badge;
   if(intake.kcal===0) badge = '<span class="hbadge">今天还没记录</span>';
-  else if(deficit<0) badge = '<span class="hbadge" style="background:rgba(239,68,68,.42);">盈余，超出消耗</span>';
-  else if(defPct>=10 && defPct<=22) badge = '<span class="hbadge">✓ '+defPct+'%，节奏正好</span>';
-  else if(defPct<10) badge = '<span class="hbadge">'+defPct+'%，缺口偏小</span>';
-  else badge = '<span class="hbadge">'+defPct+'%，别饿过头</span>';
+  else if(defPct>=lo && defPct<=hi) badge = '<span class="hbadge">✓ '+goalName+'节奏正好</span>';
+  else if(defPct>hi) badge = '<span class="hbadge">'+(D.profile.goal==='cut'?'缺口偏大，别饿过头':'吃太少，不利于'+goalName)+'</span>';
+  else badge = '<span class="hbadge" style="background:rgba(239,68,68,.42);">'+({cut:'缺口不足，减脂偏慢',recomp:'盈余偏多',bulk:'盈余超标'})[D.profile.goal]+'</span>';
+  const defLabel = deficit>=0 ? '缺口' : '盈余';
   document.getElementById('ringNums').innerHTML =
     `摄入 <b>${intake.kcal}</b> · 消耗 <b>${burn}</b><br>` +
-    `缺口 <b style="font-size:19px;">${intake.kcal? (deficit>=0?deficit:('-'+(-deficit))) : '—'}</b> kcal<br>${badge}`;
+    `${intake.kcal? defLabel : '缺口'} <b style="font-size:19px;">${intake.kcal? Math.abs(deficit) : '—'}</b> kcal<br>${badge}`;
 
   // 蛋白超标不是坏事，不标红；碳水/脂肪超标才警示
   const conf = [['碳水',intake.c,q.c,'var(--carb)',true],['蛋白质',intake.p,q.p,'var(--prot)',false],['脂肪',intake.f,q.f,'var(--fat)',true]];
@@ -763,7 +790,7 @@ function renderToday(){
     <span class="val"><b class="${warn?'over':''}">${Math.round(v)}</b> / ${t} g${suffix}</span></div>
     <div class="bar"><i style="width:${warn?100-capPct:(over?100:basePct)}%; background:${col}"></i>${warn?`<i class="cap" style="width:${capPct}%"></i>`:''}</div></div>`;
   }).join('');
-  document.getElementById('macroHint').textContent = q.kcal + ' kcal';
+  document.getElementById('macroHint').textContent = GOALS[D.profile.goal] + ' · ' + q.kcal + ' kcal';
 
   // meals
   const plan = mealPlan(day);
@@ -1252,6 +1279,12 @@ function renderTrend(){
     bars.push({x:ds.slice(5), v:burn-intake.kcal, pct:(burn-intake.kcal)/burn*100});
   }
   drawBars('deficitChart', bars);
+  const [lo,hi] = goalBand();
+  const fmt = v => (v<0? '盈余'+(-v) : '缺口'+v) + '%';
+  document.getElementById('defLegend').innerHTML =
+    `<span><span class="d" style="background:var(--p)"></span>合适 ${fmt(lo)}~${fmt(hi)}</span>
+     <span><span class="d" style="background:var(--amber)"></span>${D.profile.goal==='cut'?'缺口过大':'摄入不足'}</span>
+     <span><span class="d" style="background:var(--red)"></span>${D.profile.goal==='cut'?'吃多了':'盈余过头'}</span>`;
 }
 function drawLine(id, pts){
   const cv = document.getElementById(id), ctx = cv.getContext('2d');
@@ -1335,7 +1368,8 @@ function drawBars(id, bars){
       ctx.beginPath(); ctx.roundRect(x-bw/2, zero-4, bw, 4, 2); ctx.fill();
     } else {
       const h = Math.max(5, Math.abs(b.v)/vmax*(H/2-42));
-      ctx.fillStyle = b.v<0 ? '#EF4444' : (b.pct>=10&&b.pct<=22 ? '#10B981' : '#F59E0B');
+      const [blo,bhi] = goalBand();
+      ctx.fillStyle = (b.pct>=blo&&b.pct<=bhi) ? '#10B981' : (b.pct<blo ? '#EF4444' : '#F59E0B');
       const y = b.v>=0?zero-h:zero;
       ctx.beginPath();
       ctx.roundRect(x-bw/2, y, bw, h, b.v>=0?[5,5,0,0]:[0,0,5,5]);
@@ -1362,6 +1396,7 @@ function renderSet(){
   document.getElementById('ghOwner').value = g.owner;
   document.getElementById('ghRepo').value = g.repo;
   document.getElementById('ghToken').value = g.token;
+  document.getElementById('ghPath').value = g.path||'data.json';
   document.getElementById('aiBase').value = a.base;
   document.getElementById('aiKey').value = a.key;
   document.getElementById('aiModel').value = a.model;
@@ -1370,10 +1405,15 @@ function renderSet(){
   const h = p.height/100;
   const bmiV = p.weight/(h*h);
   const bmiCat = bmiV<18.5?'偏瘦':bmiV<24?'正常':bmiV<28?'超重':'肥胖';
+  document.getElementById('setGender').value = p.gender;
+  document.getElementById('setGoal').value = p.goal;
   document.getElementById('profCalc').innerHTML = `
     <div class="pc"><div class="v">${bmiV.toFixed(1)}</div><div class="k">BMI · ${bmiCat}</div></div>
     <div class="pc"><div class="v">${bmr()}<small>kcal</small></div><div class="k">基础代谢${p.bodyfat>0?'(按体脂)':''}</div></div>
     <div class="pc"><div class="v">${Math.round(bmr()*p.activity)}<small>kcal</small></div><div class="k">日常消耗(不含运动)</div></div>`;
+  const s = quotaScheme();
+  document.getElementById('profScheme').innerHTML =
+    `当前方案（${GOALS[p.goal]}）：蛋白 <b>${s.pF}</b> · 脂肪 <b>${s.fF}</b> · 碳水 休息日<b>${s.cRest}</b> / 训练日<b>${s.cTrain}</b> g/kg，随体重与BMI自动调整`;
 }
 function saveProfile(){
   const p = D.profile;
@@ -1382,7 +1422,9 @@ function saveProfile(){
   p.birth = document.getElementById('setBirth').value || p.birth;
   p.bodyfat = +document.getElementById('setBf').value || null;
   p.activity = +document.getElementById('setAct').value || 1.3;
-  save(); renderSet(); renderToday(); toast('已保存，配额随体重联动');
+  p.gender = document.getElementById('setGender').value;
+  p.goal = document.getElementById('setGoal').value;
+  save(); renderSet(); renderToday(); renderTrend(); toast('已保存，配额方案已更新');
 }
 function saveAI(){
   D.settings.ai = {base:document.getElementById('aiBase').value.trim(), key:document.getElementById('aiKey').value.trim(), model:document.getElementById('aiModel').value.trim()};
@@ -1427,8 +1469,8 @@ function autoSync(){
 }
 async function doSync(silent){
   const g = D.settings.github;
-  const o=document.getElementById('ghOwner'), r=document.getElementById('ghRepo'), t=document.getElementById('ghToken');
-  if(o) { g.owner=o.value.trim()||g.owner; g.repo=r.value.trim()||g.repo; g.token=t.value.trim()||g.token; }
+  const o=document.getElementById('ghOwner'), r=document.getElementById('ghRepo'), t=document.getElementById('ghToken'), pa=document.getElementById('ghPath');
+  if(o) { g.owner=o.value.trim()||g.owner; g.repo=r.value.trim()||g.repo; g.token=t.value.trim()||g.token; g.path=pa.value.trim()||'data.json'; }
   save();
   if(!ghConfigured()){ if(!silent) toast('先填写 GitHub 配置'); return; }
   setSyncState('同步中…');
