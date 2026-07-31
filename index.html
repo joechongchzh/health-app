@@ -17,7 +17,8 @@
   --shadow:0 2px 14px rgba(15,42,32,.05);
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; margin:0; padding:0;}
-body{font-family:-apple-system,"PingFang SC","HarmonyOS Sans","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--t1); padding-bottom:78px; font-variant-numeric:tabular-nums;}
+html{background:#E8EDEB;}
+body{font-family:-apple-system,"PingFang SC","HarmonyOS Sans","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--t1); padding-bottom:78px; font-variant-numeric:tabular-nums; max-width:520px; margin:0 auto; min-height:100vh; box-shadow:0 0 36px rgba(15,42,32,.07);}
 button{font-family:inherit; cursor:pointer; color:inherit;}
 ::-webkit-scrollbar{display:none;}
 .page{display:none;}
@@ -32,6 +33,33 @@ button{font-family:inherit; cursor:pointer; color:inherit;}
 .hero .top{display:flex; justify-content:space-between; align-items:flex-start; position:relative; z-index:1;}
 .hero .h1{font-size:22px; font-weight:800; letter-spacing:.5px;}
 .hero .sub{font-size:12px; opacity:.75; margin-top:3px;}
+.daterow{display:flex; align-items:center; gap:10px;}
+.dnav{width:30px; height:30px; border-radius:50%; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.14); color:#fff; font-size:16px; line-height:1; backdrop-filter:blur(6px);}
+.dnav:disabled{opacity:.35;}
+.backtoday{border:0; background:rgba(255,255,255,.9); color:var(--p-dd); font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; margin-left:2px;}
+/* calendar */
+.calhead{display:flex; align-items:center; justify-content:space-between; margin:4px 0 12px;}
+.calhead b{font-size:15.5px;}
+.calhead button{width:34px; height:34px; border-radius:10px; border:0; background:#F1F5F4; color:var(--t2); font-size:16px;}
+.calweek{display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:4px;}
+.calweek span{text-align:center; font-size:11px; color:var(--t3);}
+.calgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:4px;}
+.calcell{aspect-ratio:.92; border-radius:11px; border:0; background:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:13.5px; color:var(--t1); position:relative;}
+.calcell .dots{display:flex; gap:2.5px; height:4px;}
+.calcell .dots i{width:4px; height:4px; border-radius:50%;}
+.calcell.dim{color:#D5DDD9; pointer-events:none;}
+.calcell.today{box-shadow:inset 0 0 0 1.5px var(--p);}
+.calcell.sel{background:var(--p); color:#fff; font-weight:700;}
+.calcell.sel .dots i{background:#fff !important;}
+.callegend{display:flex; gap:14px; justify-content:center; margin:12px 0 4px; font-size:11px; color:var(--t3);}
+.callegend i{width:5px; height:5px; border-radius:50%; display:inline-block; margin-right:4px; vertical-align:1.5px;}
+.caldetail{background:var(--fill); border-radius:13px; padding:12px 14px; margin-top:10px; font-size:12.5px; color:var(--t2); line-height:1.9;}
+.caldetail b{color:var(--t1);}
+.profcalc{display:flex; gap:8px; margin-top:13px;}
+.profcalc .pc{flex:1; background:var(--fill); border-radius:12px; padding:10px 6px; text-align:center;}
+.profcalc .pc .v{font-size:16px; font-weight:800;}
+.profcalc .pc .v small{font-size:10.5px; font-weight:600; color:var(--t3); margin-left:1px;}
+.profcalc .pc .k{font-size:10.5px; color:var(--t3); margin-top:2px;}
 .hero .sync{font-size:11px; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.2); padding:4px 10px; border-radius:999px; backdrop-filter:blur(8px);}
 .hero .sync.err{background:rgba(239,68,68,.5); border-color:rgba(255,255,255,.15);}
 .hero .body{display:flex; align-items:center; gap:10px; margin-top:14px; position:relative; z-index:1;}
@@ -117,7 +145,7 @@ button{font-family:inherit; cursor:pointer; color:inherit;}
 .btn:disabled{opacity:.5;}
 
 /* nav */
-.nav{position:fixed; bottom:0; left:0; right:0; background:rgba(255,255,255,.94); backdrop-filter:blur(16px); border-top:1px solid var(--line); display:flex; z-index:50; padding:6px 8px calc(6px + env(safe-area-inset-bottom));}
+.nav{position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:520px; background:rgba(255,255,255,.94); backdrop-filter:blur(16px); border-top:1px solid var(--line); display:flex; z-index:50; padding:6px 8px calc(6px + env(safe-area-inset-bottom));}
 .nav button{flex:1; border:0; background:none; padding:5px 0 3px; font-size:10.5px; color:#A6B1AC; display:flex; flex-direction:column; align-items:center; gap:2px; border-radius:12px; transition:all .15s;}
 .nav button svg{width:23px; height:23px; stroke:#A6B1AC; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; transition:all .15s;}
 .nav button.on{color:var(--p-dd); font-weight:700;}
@@ -127,8 +155,8 @@ button{font-family:inherit; cursor:pointer; color:inherit;}
 /* sheets & toast */
 .mask{position:fixed; inset:0; background:rgba(15,23,42,.45); backdrop-filter:blur(2px); z-index:100; opacity:0; pointer-events:none; transition:opacity .22s;}
 .mask.show{opacity:1; pointer-events:auto;}
-.sheet{position:fixed; left:0; right:0; bottom:0; background:#fff; border-radius:20px 20px 0 0; z-index:101; max-height:86vh; display:flex; flex-direction:column; padding-bottom:env(safe-area-inset-bottom); transform:translateY(105%); transition:transform .28s cubic-bezier(.32,.72,0,1);}
-.sheet.show{transform:none;}
+.sheet{position:fixed; left:50%; bottom:0; width:100%; max-width:520px; background:#fff; border-radius:20px 20px 0 0; z-index:101; max-height:86vh; display:flex; flex-direction:column; padding-bottom:env(safe-area-inset-bottom); transform:translateX(-50%) translateY(105%); transition:transform .28s cubic-bezier(.32,.72,0,1);}
+.sheet.show{transform:translateX(-50%);}
 .sheet .grab{width:36px; height:4px; background:#E2E8F0; border-radius:2px; margin:10px auto 0; flex:none;}
 .sheet .hd{padding:10px 18px 6px; font-size:16.5px; font-weight:800; display:flex; justify-content:space-between; align-items:center; flex:none;}
 .sheet .hd .x{font-size:19px; color:#CBD5E1; background:none; border:0; padding:2px 6px;}
@@ -202,7 +230,15 @@ canvas.chart{width:100%; height:auto; display:block;}
 <div class="page active" id="page-today">
   <div class="hero">
     <div class="top">
-      <div><div class="h1">今日</div><div class="sub" id="todayDate"></div></div>
+      <div class="daterow">
+        <button class="dnav" onclick="shiftDate(-1)">‹</button>
+        <div onclick="openCalendar()" style="cursor:pointer;">
+          <div class="h1" id="heroTitle">今日</div>
+          <div class="sub" id="todayDate"></div>
+        </div>
+        <button class="dnav" id="dnavNext" onclick="shiftDate(1)">›</button>
+        <button class="backtoday" id="backToday" onclick="goToday()" style="display:none;">回今天</button>
+      </div>
       <div class="sync" id="syncState">本地模式</div>
     </div>
     <div class="body">
@@ -316,6 +352,7 @@ canvas.chart{width:100%; height:auto; display:block;}
       <div class="row"><div><label class="f">出生日期</label><input id="setBirth" type="date"></div>
       <div><label class="f">体脂率 %（可选）</label><input id="setBf" type="number" step="0.1" inputmode="decimal"></div></div>
       <label class="f">日常活动系数（久坐办公 1.25-1.35）</label><input id="setAct" type="number" step="0.05" inputmode="decimal">
+      <div class="profcalc" id="profCalc"></div>
       <button class="btn" style="margin-top:14px;" onclick="saveProfile()">保存档案</button>
     </div>
     <div class="card">
@@ -421,6 +458,25 @@ canvas.chart{width:100%; height:auto; display:block;}
     </div>
     <label class="chk" style="margin-bottom:12px;"><input type="checkbox" id="st_trainOnly">仅训练日显示</label>
     <button class="btn" onclick="addSupp()">添加</button>
+  </div>
+</div>
+
+<!-- calendar sheet -->
+<div class="sheet" id="calSheet">
+  <div class="grab"></div>
+  <div class="hd"><span>日历 · 补记与回看</span><button class="x" onclick="closeSheets()">✕</button></div>
+  <div class="bd">
+    <div class="calhead">
+      <button onclick="calShift(-1)">‹</button><b id="calTitle"></b><button onclick="calShift(1)">›</button>
+    </div>
+    <div class="calweek"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+    <div class="calgrid" id="calGrid"></div>
+    <div class="callegend">
+      <span><i style="background:var(--p)"></i>饮食</span>
+      <span><i style="background:var(--prot)"></i>训练</span>
+      <span><i style="background:var(--fat)"></i>补剂</span>
+    </div>
+    <div id="calDetail"></div>
   </div>
 </div>
 
@@ -650,9 +706,19 @@ function dayBurn(day){
 /* ================= 今日页 ================= */
 let curDate = todayStr();
 const expandedMeals = new Set();
+function shiftDate(n){
+  const next = dateOffset(curDate, n);
+  if(next > todayStr()) return;
+  curDate = next; renderAll(); window.scrollTo(0,0);
+}
+function goToday(){ curDate = todayStr(); renderAll(); }
 function renderToday(){
   const day = getDay(curDate);
-  document.getElementById('todayDate').textContent = curDate + ' 周' + '日一二三四五六'[new Date(curDate).getDay()];
+  const isToday = curDate === todayStr();
+  document.getElementById('heroTitle').textContent = isToday ? '今日' : (+curDate.slice(5,7))+'月'+(+curDate.slice(8))+'日';
+  document.getElementById('todayDate').textContent = (isToday ? curDate : '补记 / 回看') + ' 周' + '日一二三四五六'[new Date(curDate).getDay()];
+  document.getElementById('dnavNext').disabled = isToday;
+  document.getElementById('backToday').style.display = isToday ? 'none' : 'block';
   document.getElementById('encourage').textContent = ENC[parseInt(curDate.replace(/-/g,''))%ENC.length];
 
   document.getElementById('dayTypeSeg').innerHTML = DAY_TYPES.map(([k,n])=>
@@ -677,12 +743,13 @@ function renderToday(){
   drawRing(intake.kcal, burn);
   let badge;
   if(intake.kcal===0) badge = '<span class="hbadge">今天还没记录</span>';
-  else if(deficit<0) badge = '<span class="hbadge" style="background:rgba(239,68,68,.42);">盈余 '+(-deficit)+' kcal</span>';
-  else if(defPct>=10 && defPct<=22) badge = '<span class="hbadge">✓ 缺口 '+defPct+'%，节奏正好</span>';
-  else if(defPct<10) badge = '<span class="hbadge">缺口只有 '+defPct+'%</span>';
-  else badge = '<span class="hbadge">缺口 '+defPct+'%，别饿过头</span>';
+  else if(deficit<0) badge = '<span class="hbadge" style="background:rgba(239,68,68,.42);">盈余，超出消耗</span>';
+  else if(defPct>=10 && defPct<=22) badge = '<span class="hbadge">✓ '+defPct+'%，节奏正好</span>';
+  else if(defPct<10) badge = '<span class="hbadge">'+defPct+'%，缺口偏小</span>';
+  else badge = '<span class="hbadge">'+defPct+'%，别饿过头</span>';
   document.getElementById('ringNums').innerHTML =
-    `摄入 <b>${intake.kcal}</b> kcal<br>消耗 <b>${burn}</b> kcal<br>${badge}`;
+    `摄入 <b>${intake.kcal}</b> · 消耗 <b>${burn}</b><br>` +
+    `缺口 <b style="font-size:19px;">${intake.kcal? (deficit>=0?deficit:('-'+(-deficit))) : '—'}</b> kcal<br>${badge}`;
 
   // 蛋白超标不是坏事，不标红；碳水/脂肪超标才警示
   const conf = [['碳水',intake.c,q.c,'var(--carb)',true],['蛋白质',intake.p,q.p,'var(--prot)',false],['脂肪',intake.f,q.f,'var(--fat)',true]];
@@ -703,19 +770,23 @@ function renderToday(){
   const yest = D.days[dateOffset(curDate,-1)];
   document.getElementById('mealsBox').innerHTML = plan.map(m=>{
     const items = day.meals[m.key];
-    const kc = Math.round(items.reduce((s,it)=>s+(it.pending?0:it.c*4+it.p*4+it.f*9),0));
+    const done = items.filter(it=>!it.pending);
+    const mc = Math.round(done.reduce((s,it)=>s+it.c,0)), mp = Math.round(done.reduce((s,it)=>s+it.p,0)), mf = Math.round(done.reduce((s,it)=>s+it.f,0));
+    const kc = Math.round(done.reduce((s,it)=>s+it.c*4+it.p*4+it.f*9,0));
     const mealKcalT = m.frac ? Math.round(q.c*m.frac.c*4 + q.p*m.frac.p*4 + q.f*m.frac.f*9) : 0;
-    const expanded = expandedMeals.has(m.key);
-    const target = m.frac ? `目标 碳${Math.round(q.c*m.frac.c)} · 蛋${Math.round(q.p*m.frac.p)} · 脂${Math.round(q.f*m.frac.f)} g` : '自由加餐，不设目标';
+    // 每餐碳蛋脂 实际/配额 常显
+    const target = m.frac
+      ? `碳 <b>${mc}</b>/${Math.round(q.c*m.frac.c)} · 蛋 <b>${mp}</b>/${Math.round(q.p*m.frac.p)} · 脂 <b>${mf}</b>/${Math.round(q.f*m.frac.f)} g`
+      : (kc ? `碳 <b>${mc}</b> · 蛋 <b>${mp}</b> · 脂 <b>${mf}</b> g · 自由加餐` : '自由加餐，不设目标');
     const yItems = yest && yest.meals[m.key] ? yest.meals[m.key].filter(it=>!it.pending) : [];
     const yKc = Math.round(yItems.reduce((s,it)=>s+it.c*4+it.p*4+it.f*9,0));
     const copyBtn = (!items.length && yItems.length) ? `<button class="additem copy" onclick="copyYesterday('${m.key}')">⧉ 复制昨天 ${yKc}kcal</button>` : '';
     return `<div class="meal">
-      <div class="mealhead" onclick="toggleMealTarget('${m.key}')">
+      <div class="mealhead">
         <span class="mico">${MEAL_SVG[m.key]}</span><span class="nm">${m.label}</span>
-        ${m.tag?`<span class="tag">${m.tag}</span>`:''}<span class="chev ${expanded?'open':''}">▶</span>
+        ${m.tag?`<span class="tag">${m.tag}</span>`:''}
         <span class="kc">${kc?`<b>${kc}</b>`:'<b style="color:var(--t3);font-weight:400">0</b>'}${mealKcalT?' / '+mealKcalT:''} kcal</span></div>
-      <div class="mealtarget ${expanded?'show':''}">${target}</div>
+      <div class="mealtarget show">${target}</div>
       ${items.map((it,i)=>`<div class="fooditem ${it.pending?'pending':''}">
         <div class="fi" onclick="editFood('${m.key}',${i})"><div class="nm">${it.name}${it.amt?' · '+it.amt:''}${it.pending?' ⏳':''}</div>
         <div class="meta">${it.pending?'待估算，同步后自动补全':`${Math.round(it.c*4+it.p*4+it.f*9)} kcal · 碳${Math.round(it.c)} 蛋${Math.round(it.p)} 脂${Math.round(it.f)}`}</div></div>
@@ -735,7 +806,6 @@ function renderToday(){
   }
   document.getElementById('suppBox').innerHTML = chips.join('') || '<div class="hint">今天没有需要打卡的补剂</div>';
 }
-function toggleMealTarget(k){ expandedMeals.has(k) ? expandedMeals.delete(k) : expandedMeals.add(k); renderToday(); }
 function setDayType(t){ getDay(curDate).type = t; touch(curDate); renderToday(); }
 function setTrainTime(t){ getDay(curDate).trainTime = t; touch(curDate); renderToday(); }
 function toggleSupp(k){ const d=getDay(curDate); d.supps[k]=!d.supps[k]; touch(curDate); renderToday(); autoSync(); }
@@ -959,6 +1029,60 @@ async function aiEstimate(){
   }catch(e){ toast('AI 查询失败：'+e.message); }
   btn.disabled=false; btn.textContent='🤖 AI 实时估算';
 }
+
+/* ================= 日历 ================= */
+let calMonth = null, calSel = null;
+function openCalendar(){ calMonth = curDate.slice(0,7); calSel = curDate; renderCalendar(); showSheet('calSheet'); }
+function calShift(n){
+  const [y,m] = calMonth.split('-').map(Number);
+  const d = new Date(y, m-1+n, 1);
+  calMonth = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  renderCalendar();
+}
+function renderCalendar(){
+  const [y,m] = calMonth.split('-').map(Number);
+  document.getElementById('calTitle').textContent = y+'年'+m+'月';
+  const startPad = (new Date(y, m-1, 1).getDay()+6)%7; // 周一开头
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const today = todayStr();
+  let html='';
+  for(let i=0;i<startPad;i++) html+='<span></span>';
+  for(let d=1; d<=daysInMonth; d++){
+    const ds = calMonth+'-'+String(d).padStart(2,'0');
+    const rec = D.days[ds];
+    const dots = [];
+    if(rec && ds<=today){
+      if(dayIntake(rec).kcal>0) dots.push('var(--p)');
+      if(rec.workouts && rec.workouts.length) dots.push('var(--prot)');
+      if(rec.supps && Object.values(rec.supps).some(v=>v)) dots.push('var(--fat)');
+    }
+    const cls = ['calcell', ds>today?'dim':'', ds===today?'today':'', ds===calSel?'sel':''].join(' ');
+    html += `<button class="${cls}" onclick="calPick('${ds}')"><span>${d}</span><span class="dots">${dots.map(c=>`<i style="background:${c}"></i>`).join('')}</span></button>`;
+  }
+  document.getElementById('calGrid').innerHTML = html;
+  renderCalDetail();
+}
+function calPick(ds){ calSel = ds; renderCalendar(); }
+function renderCalDetail(){
+  const box = document.getElementById('calDetail');
+  const rec = D.days[calSel];
+  const label = (+calSel.slice(5,7))+'月'+(+calSel.slice(8))+'日';
+  if(!rec){
+    box.innerHTML = `<div class="caldetail"><b>${label}</b> · 无记录<br>
+    <button class="btn sm" style="margin-top:8px;" onclick="calGo()">去补记这一天</button></div>`;
+    return;
+  }
+  const i = dayIntake(rec);
+  const typeName = (DAY_TYPES.find(t=>t[0]===rec.type)||['','—'])[1];
+  const wk = rec.workouts.map(w=>w.name+(w.kind==='cardio'?` ${w.min}min`:'')).join('、') || '无';
+  const supNames = [];
+  for(const s of D.suppDefs){ for(const t of s.times){ if(rec.supps && rec.supps[s.id+'_'+t]) supNames.push(s.name+'·'+t); } }
+  box.innerHTML = `<div class="caldetail"><b>${label} · ${typeName}</b><br>
+  饮食：${i.kcal? `<b>${i.kcal}</b> kcal · 碳${Math.round(i.c)} 蛋${Math.round(i.p)} 脂${Math.round(i.f)}` : '未记录'}<br>
+  训练：${wk}<br>补剂：${supNames.join('、')||'未打卡'}<br>
+  <button class="btn sm" style="margin-top:8px;" onclick="calGo()">查看 / 补记这一天</button></div>`;
+}
+function calGo(){ curDate = calSel; closeSheets(); renderAll(); window.scrollTo(0,0); }
 
 /* ================= 补剂管理 ================= */
 function openSuppMg(){ renderSuppMg(); showSheet('suppSheet'); }
@@ -1241,7 +1365,15 @@ function renderSet(){
   document.getElementById('aiBase').value = a.base;
   document.getElementById('aiKey').value = a.key;
   document.getElementById('aiModel').value = a.model;
-  document.getElementById('dataStat').textContent = `${Object.keys(D.days).length}天记录 · ${D.foods.length}条食物 · BMR ${bmr()}kcal`;
+  document.getElementById('dataStat').textContent = `${Object.keys(D.days).length}天记录 · ${D.foods.length}条食物`;
+  // BMI + 代谢测算
+  const h = p.height/100;
+  const bmiV = p.weight/(h*h);
+  const bmiCat = bmiV<18.5?'偏瘦':bmiV<24?'正常':bmiV<28?'超重':'肥胖';
+  document.getElementById('profCalc').innerHTML = `
+    <div class="pc"><div class="v">${bmiV.toFixed(1)}</div><div class="k">BMI · ${bmiCat}</div></div>
+    <div class="pc"><div class="v">${bmr()}<small>kcal</small></div><div class="k">基础代谢${p.bodyfat>0?'(按体脂)':''}</div></div>
+    <div class="pc"><div class="v">${Math.round(bmr()*p.activity)}<small>kcal</small></div><div class="k">日常消耗(不含运动)</div></div>`;
 }
 function saveProfile(){
   const p = D.profile;
