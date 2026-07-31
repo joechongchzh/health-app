@@ -1461,7 +1461,7 @@ function setSyncState(txt, cls){
   const el = document.getElementById('syncState');
   el.textContent = txt; el.className = 'sync '+(cls||'');
 }
-let syncTimer = null;
+let syncTimer = null, syncBusy = false, syncAgain = false;
 function autoSync(){
   if(!ghConfigured()) return;
   clearTimeout(syncTimer);
@@ -1473,21 +1473,34 @@ async function doSync(silent){
   if(o) { g.owner=o.value.trim()||g.owner; g.repo=r.value.trim()||g.repo; g.token=t.value.trim()||g.token; g.path=pa.value.trim()||'data.json'; }
   save();
   if(!ghConfigured()){ if(!silent) toast('先填写 GitHub 配置'); return; }
+  if(syncBusy){ syncAgain = true; return; }  // 已在同步：标记结束后再跑一轮，避免并发409
+  syncBusy = true;
   setSyncState('同步中…');
   const url = `https://api.github.com/repos/${g.owner}/${g.repo}/contents/${g.path||'data.json'}`;
   const hdr = {'Authorization':'Bearer '+g.token, 'Accept':'application/vnd.github+json'};
   try{
-    let sha = null;
-    const getRes = await fetch(url, {headers:hdr});
-    if(getRes.status===200){
-      const j = await getRes.json();
-      sha = j.sha;
-      try{ mergeData(JSON.parse(b64decode(j.content))); }catch(e){}
-    } else if(getRes.status!==404){ throw new Error('拉取失败 HTTP '+getRes.status); }
+    const pull = async () => {
+      const getRes = await fetch(url, {headers:hdr});
+      if(getRes.status===200){
+        const j = await getRes.json();
+        try{ mergeData(JSON.parse(b64decode(j.content))); }catch(e){}
+        return j.sha;
+      }
+      if(getRes.status===404) return null;
+      throw new Error('拉取失败 HTTP '+getRes.status);
+    };
+    const push = async (sha) => {
+      const body = {message:'sync '+new Date().toISOString(), content:b64encode(JSON.stringify(D,null,1))};
+      if(sha) body.sha = sha;
+      return fetch(url, {method:'PUT', headers:hdr, body:JSON.stringify(body)});
+    };
+    let sha = await pull();
     save();
-    const body = {message:'sync '+new Date().toISOString(), content:b64encode(JSON.stringify(D,null,1))};
-    if(sha) body.sha = sha;
-    const putRes = await fetch(url, {method:'PUT', headers:hdr, body:JSON.stringify(body)});
+    let putRes = await push(sha);
+    if(putRes.status===409){  // 版本冲突：重拉最新sha再推一次
+      sha = await pull(); save();
+      putRes = await push(sha);
+    }
     if(!putRes.ok) throw new Error('推送失败 HTTP '+putRes.status);
     D.lastSync = Date.now(); save();
     setSyncState('✓ ' + new Date().toTimeString().slice(0,5) + ' 已同步');
@@ -1495,6 +1508,9 @@ async function doSync(silent){
   }catch(e){
     setSyncState('同步失败', 'err');
     if(!silent) toast('同步失败：'+e.message+'，数据保存在本地');
+  }finally{
+    syncBusy = false;
+    if(syncAgain){ syncAgain = false; autoSync(); }
   }
 }
 function mergeData(remote){
