@@ -232,6 +232,44 @@ canvas.chart{width:100%; height:auto; display:block;}
 .mgrow button{border:0; background:#F1F5F4; color:var(--t2); border-radius:8px; width:32px; height:32px; font-size:14px; flex:none;}
 .mgrow button.rmv{background:#FEF2F2; color:#DC2626;}
 .mgrow button:disabled{opacity:.3;}
+/* AI 助手 */
+.aimsg{display:flex; margin-bottom:12px;}
+.aimsg.user{justify-content:flex-end;}
+.aimsg .bub{max-width:84%; padding:10px 14px; border-radius:16px; font-size:14px; line-height:1.65; white-space:pre-wrap; word-break:break-word;}
+.aimsg.user .bub{background:linear-gradient(160deg,#13B57A,#0A8A5F); color:#fff; border-bottom-right-radius:5px;}
+.aimsg.bot .bub{background:#fff; color:var(--t1); border:1px solid var(--line); border-bottom-left-radius:5px; box-shadow:0 1px 4px rgba(15,42,32,.05);}
+.aimsg .bub img{max-width:150px; border-radius:10px; display:block; margin-bottom:6px;}
+.aimsg.exec{justify-content:center;}
+.aimsg.exec .bub{background:none; border:0; color:var(--t3); font-size:11.5px; padding:2px 0; box-shadow:none;}
+.aicard{background:#fff; border:1.5px solid #BEEBD8; border-radius:16px; padding:13px 14px; margin:2px 0 12px; max-width:92%; box-shadow:0 2px 10px rgba(16,185,129,.08);}
+.aicard .ttl{display:flex; align-items:center; gap:7px; font-size:13px; font-weight:700; color:var(--p-dd); margin-bottom:7px;}
+.aicard .ttl .tag{background:var(--p-l); color:var(--p-d); border-radius:6px; padding:1px 7px; font-size:11px;}
+.aicard .rowi{display:flex; justify-content:space-between; align-items:baseline; gap:8px; padding:6px 0; border-bottom:1px dashed var(--line); font-size:13px;}
+.aicard .rowi:last-of-type{border-bottom:0;}
+.aicard .rowi .m{color:var(--t3); font-size:11.5px; flex:none; text-align:right;}
+.aicard .foot{font-size:11.5px; color:var(--t3); margin-top:8px; background:var(--fill); border-radius:9px; padding:7px 10px;}
+.aicard .btns{display:flex; gap:8px; margin-top:11px;}
+.aicard .btns .ok{flex:1; background:var(--p); color:#fff; border:0; border-radius:11px; padding:9px 0; font-size:13.5px; font-weight:700;}
+.aicard .btns .no{background:#F1F5F4; color:var(--t2); border:0; border-radius:11px; padding:9px 16px; font-size:13px;}
+.aicard.done{border-color:var(--line); box-shadow:none; opacity:.75;}
+.aicard .stamp{font-size:12px; font-weight:700; margin-top:8px;}
+.aicard .stamp.okc{color:var(--p-d);}
+.aicard .stamp.noc{color:var(--t3);}
+.aibar{position:fixed; bottom:calc(54px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); width:100%; max-width:520px; background:rgba(255,255,255,.96); backdrop-filter:blur(14px); border-top:1px solid var(--line); display:none; gap:8px; padding:9px 12px; z-index:49; align-items:center;}
+.aibar.show{display:flex;}
+.aibar .ico{width:38px; height:38px; flex:none; border:0; border-radius:12px; background:#F1F5F4; display:flex; align-items:center; justify-content:center; position:relative;}
+.aibar .ico svg{width:20px; height:20px; stroke:var(--t2); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
+.aibar .ico.rec{background:#FEE2E2;} .aibar .ico.rec svg{stroke:#DC2626;}
+.aibar .ico img{position:absolute; inset:3px; width:32px; height:32px; object-fit:cover; border-radius:9px;}
+.aibar input{flex:1; height:40px;}
+.aibar .snd{width:40px; height:40px; flex:none; border:0; border-radius:12px; background:var(--p); display:flex; align-items:center; justify-content:center;}
+.aibar .snd svg{width:19px; height:19px; stroke:#fff; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+.aibar .snd:disabled{opacity:.45;}
+.aiquick{display:flex; gap:8px; margin-bottom:14px;}
+.aiquick button{flex:1; border:1px solid var(--line); background:#fff; border-radius:12px; padding:8px 0; font-size:12.5px; color:var(--t2);}
+.aihint{text-align:center; color:var(--t3); font-size:12.5px; padding:26px 14px; line-height:2;}
+.camb{border:0; background:none; padding:8px 6px; flex:none;}
+.camb svg{width:20px; height:20px; stroke:#8FA39A; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;}
 .suppmg{display:flex; align-items:center; padding:11px 0; border-bottom:1px solid var(--line); font-size:14px;}
 .suppmg .tms{font-size:11.5px; color:var(--t3); margin-left:8px; flex:1;}
 .chk{display:inline-flex; align-items:center; gap:5px; margin-right:12px; font-size:13.5px; color:var(--t2);}
@@ -349,6 +387,21 @@ canvas.chart{width:100%; height:auto; display:block;}
   </div>
 </div>
 
+<!-- ============ AI ============ -->
+<div class="page" id="page-ai">
+  <div class="hero" style="padding-bottom:16px;">
+    <div class="top"><div><div class="h1">AI 助手</div><div class="sub" id="aiStatus"></div></div></div>
+  </div>
+  <div class="wrap" style="padding-bottom:66px;">
+    <div class="aiquick">
+      <button onclick="aiReview('day')">今日回顾</button>
+      <button onclick="aiReview('week')">本周回顾</button>
+      <button onclick="aiClear()">清空对话</button>
+    </div>
+    <div id="aiChatBox"></div>
+  </div>
+</div>
+
 <!-- ============ 设置 ============ -->
 <div class="page" id="page-set">
   <div class="hero" style="padding-bottom:16px;">
@@ -389,11 +442,21 @@ canvas.chart{width:100%; height:auto; display:block;}
     </div>
     <div class="card">
       <div class="ct"><span class="cico gray"><svg viewBox="0 0 24 24"><rect x="4.5" y="8" width="15" height="11" rx="3.5"/><path d="M12 8V4.5M9.3 13.2h.01M14.7 13.2h.01"/></svg></span>
-        <span class="t">AI 实时估算</span><span class="r">可选</span></div>
+        <span class="t">AI 模型配置</span><span class="r" id="aiCfgStat"></span></div>
+      <label class="f" style="color:var(--p-dd); font-weight:700;">① 对话模型 · 文字理解与记录（必配）</label>
       <label class="f">Base URL（OpenAI 兼容）</label><input id="aiBase" placeholder="https://api.deepseek.com">
       <label class="f">API Key</label><input id="aiKey" type="password">
-      <label class="f">模型名</label><input id="aiModel" placeholder="deepseek-chat">
-      <button class="btn ghost" style="margin-top:14px;" onclick="saveAI()">保存</button>
+      <label class="f">模型名</label><input id="aiModel" placeholder="deepseek-v4-flash">
+      <label class="f" style="color:var(--p-dd); font-weight:700; margin-top:16px;">② 视觉模型 · 拍照识别（选配）</label>
+      <label class="f">Base URL</label><input id="viBase" placeholder="如 https://open.bigmodel.cn/api/paas/v4">
+      <label class="f">API Key</label><input id="viKey" type="password">
+      <label class="f">模型名</label><input id="viModel" placeholder="如 glm-4v-flash">
+      <label class="f" style="color:var(--p-dd); font-weight:700; margin-top:16px;">③ 语音模型 · 语音转文字（选配）</label>
+      <label class="f">Base URL</label><input id="voBase" placeholder="如 https://api.siliconflow.cn/v1">
+      <label class="f">API Key</label><input id="voKey" type="password">
+      <label class="f">模型名</label><input id="voModel" placeholder="如 FunAudioLLM/SenseVoiceSmall">
+      <button class="btn ghost" style="margin-top:14px;" onclick="saveAI()">保存全部</button>
+      <div class="hint" style="margin-top:10px;">视觉/语音未配置时对应按钮自动隐藏，配好即生效。没配语音模型时，用输入法自带的语音转文字效果一样好。</div>
     </div>
     <div class="card">
       <div class="ct"><span class="cico gray"><svg viewBox="0 0 24 24"><path d="M3.5 8L12 3.5 20.5 8v8L12 20.5 3.5 16z"/><path d="M3.5 8l8.5 4.5L20.5 8M12 12.5v8"/></svg></span>
@@ -408,9 +471,18 @@ canvas.chart{width:100%; height:auto; display:block;}
 </div>
 
 <!-- nav -->
+<div class="aibar" id="aiBar">
+  <button class="ico" id="aiAttachBtn" onclick="pickAiImage()"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="3"/><circle cx="9" cy="10.5" r="1.6"/><path d="M3.5 17l5-4.5 4 3.5 3.5-3 4.5 4"/></svg></button>
+  <button class="ico" id="aiMicBtn" style="display:none;" onclick="toggleRec()"><svg viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5"/></svg></button>
+  <input id="aiInput" placeholder="说点什么，比如：午饭吃了碗牛肉面" onkeydown="if(event.key==='Enter')sendAI()">
+  <button class="snd" id="aiSendBtn" onclick="sendAI()"><svg viewBox="0 0 24 24"><path d="M4 12L20 4l-4 16-4.5-6.5L4 12z"/></svg></button>
+</div>
+<input type="file" id="aiImgInput" accept="image/*" style="display:none;" onchange="aiImgPicked(this)">
+
 <div class="nav">
   <button class="on" data-page="today"><svg viewBox="0 0 24 24"><path d="M4 11.5c0 4.4 3.6 8 8 8s8-3.6 8-8H4z"/><path d="M9 11.5V7.5M13 11.5V5.5"/></svg>今日</button>
   <button data-page="train"><svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"/></svg>训练</button>
+  <button data-page="ai"><svg viewBox="0 0 24 24"><path d="M12 3.5l1.7 4.3 4.3 1.7-4.3 1.7L12 15.5l-1.7-4.3L6 9.5l4.3-1.7L12 3.5z"/><path d="M18.8 14.8l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2z"/></svg>AI</button>
   <button data-page="trend"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>趋势</button>
   <button data-page="set"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2-1.2L14.2 3h-4L9.7 5.7a7 7 0 0 0-2 1.2l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2 1.2l.4 2.7h4l.5-2.7a7 7 0 0 0 2-1.2l2.3 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>设置</button>
 </div>
@@ -669,6 +741,9 @@ function load(){
   d.pending = d.pending || [];
   d.recent = d.recent || [];
   d.settings = d.settings || {github:{owner:'',repo:'',path:'data.json',token:''}, ai:{base:'',key:'',model:''}};
+  d.settings.aiVision = d.settings.aiVision || {base:'',key:'',model:''};
+  d.settings.aiVoice = d.settings.aiVoice || {base:'',key:'',model:''};
+  d.aiChat = d.aiChat || [];
   d.suppDefs = d.suppDefs || JSON.parse(JSON.stringify(DEFAULT_SUPPS));
   d.customEx = d.customEx || {chest:[],shoulder:[],back:[],leg:[]};
   if(d.ver !== 2){
@@ -906,7 +981,7 @@ function renderToday(){
         <div class="fi" onclick="editFood('${m.key}',${i})"><div class="nm">${it.name}${it.amt?' · '+it.amt:''}${it.pending?' ⏳':''}</div>
         <div class="meta">${it.pending?'待估算，同步后自动补全':`${Math.round(it.c*4+it.p*4+it.f*9)} kcal · 碳${Math.round(it.c)} 蛋${Math.round(it.p)} 脂${Math.round(it.f)}`}</div></div>
         <button class="del" onclick="delFood('${m.key}',${i})">✕</button></div>`).join('')}
-      <div class="mealbtns">${copyBtn}${done.length>=2?`<button class="additem" onclick="openComboSave('${m.key}')">存为套餐</button>`:''}<button class="additem" onclick="openFoodSheet('${m.key}','${m.label}')">＋ 添加食物</button></div>
+      <div class="mealbtns">${copyBtn}${done.length>=2?`<button class="additem" onclick="openComboSave('${m.key}')">存为套餐</button>`:''}<button class="additem" onclick="openFoodSheet('${m.key}','${m.label}')">＋ 添加食物</button><button class="camb" onclick="mealCam('${m.key}')" title="拍照识别"><svg viewBox="0 0 24 24"><path d="M4 8.5h2.8l1.6-2.5h7.2l1.6 2.5H20A1.5 1.5 0 0 1 21.5 10v8a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18v-8A1.5 1.5 0 0 1 4 8.5z"/><circle cx="12" cy="13.7" r="3.1"/></svg></button></div>
     </div>`;
   }).join('');
 
@@ -1210,6 +1285,402 @@ async function aiEstimate(){
     save(); pickFood(name);
   }catch(e){ toast('AI 查询失败：'+e.message); }
   btn.disabled=false; btn.textContent='🤖 AI 实时估算';
+}
+
+/* ================= AI 助手 ================= */
+const MEAL_NAMES = {breakfast:'早餐', lunch:'午餐', dinner:'晚餐', snack:'加餐'};
+let aiBusy=false, aiPendingImg=null, mealImgTarget=null;
+function esc(s){ return (s==null?'':''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function aiCfg(kind){ const s=D.settings; return kind==='vision' ? (s.aiVision||{}) : kind==='voice' ? (s.aiVoice||{}) : (s.ai||{}); }
+function aiReady(kind){ const c=aiCfg(kind); return !!(c.base && c.key && c.model); }
+
+function aiSystemPrompt(){
+  const day = getDay(curDate);
+  const q = quotas(day), intake = dayIntake(day);
+  const plan = mealPlan(day);
+  const mealsTxt = plan.map(m=>{
+    const items = day.meals[m.key].filter(i=>!i.pending);
+    return `${m.label}(${m.key}): ` + (items.length ? items.map(i=>`${i.name}${i.amt?'·'+i.amt:''} 碳${Math.round(i.c)}蛋${Math.round(i.p)}脂${Math.round(i.f)}`).join('、') : '未记录');
+  }).join('\n');
+  const woTxt = day.workouts.length ? day.workouts.map(w=>`${w.name} ${w.min}min ${w.kcal}kcal`).join('、') : '无';
+  const splitTxt = D.split.map(s=>`${s.name}: ${s.ex.join('、')}`).join('\n');
+  return `你是Joe的健康追踪app内置AI助手，负责把自然语言转成结构化记录动作、维护食物库和动作库、结合当日配额给饮食建议、做训练与饮食复盘。
+【输出协议】每次必须且只能输出一个JSON对象：{"reply":"给用户看的中文","actions":[...]}。禁止输出JSON以外的文字，禁止markdown代码块。reply简洁口语化。actions可为空数组（闲聊、追问、建议、回顾时）。信息不足以生成准确记录时不要猜，用reply追问（一次问全缺的信息），凑齐后再输出action。
+【动作类型】
+{"type":"log_strength","dayName":"训练日名(必须取自训练方案)","entries":[{"ex":"动作名","w":重量kg,"r":每组次数,"s":组数}],"min":总分钟(未说则填70)}
+{"type":"log_cardio","name":"有氧类型(限:${CARDIO.map(c=>c[0]).join('/')})","min":分钟}
+{"type":"log_food","meal":"breakfast|lunch|dinner|snack","items":[{"name":"食物名","amt":"份量描述","c":实际摄入碳水g,"p":蛋白g,"f":脂肪g,"is_new":布尔,"lib":{"serv":"每份说明","servG":每份克重,"c":每份碳水,"p":每份蛋白,"f":每份脂肪}}]}
+（c/p/f是这次实际吃下的总量；is_new=true表示食物库没有，此时必须带lib给出单份基准以便入库；库里有的食物用库内名称且不带lib）
+{"type":"add_food","name":"","serv":"每份说明","servG":每份克重,"c":每份碳水,"p":每份蛋白,"f":每份脂肪}（用户主动提供营养数据的新食物）
+{"type":"save_combo","name":"套餐名","meal":"breakfast|lunch|dinner|snack"}（把今天该餐已记录的食物存为套餐）
+{"type":"add_exercise","dayName":"训练日名","ex":"动作名"}
+{"type":"remove_exercise","dayName":"训练日名","ex":"动作名"}
+{"type":"log_weight","kg":数值}
+【规则】食物、动作、训练日优先精确匹配下方库里的现有名称，匹配不到才造新名并标is_new。外卖/餐馆食物按重油重调味口径估算热量，宁可高估不低估。数值明显异常（重量>300kg、单餐>3000kcal）先追问确认。用户没说哪一餐时按当前时间推断并在reply里说明。饮食建议要对照该餐剩余配额给结论。
+【今天 ${curDate} 周${'日一二三四五六'[new Date(curDate).getDay()]}】
+日型:${({train:'力量日',rest:'休息日',cardio:'有氧日'})[day.type]} · 体重:${D.profile.weight}kg · 目标:${GOALS[D.profile.goal]}
+今日配额: 碳${q.c} 蛋${q.p} 脂${q.f}g ≈${q.kcal}kcal · 已摄入: 碳${Math.round(intake.c)} 蛋${Math.round(intake.p)} 脂${Math.round(intake.f)} = ${intake.kcal}kcal
+${mealsTxt}
+今日训练: ${woTxt}
+【训练方案】
+${splitTxt}
+【食物库】${D.foods.map(f=>f.name).join('、')}
+【套餐库】${D.combos.map(c=>c.name).join('、')||'无'}
+【系统消息】以"[系统]"开头的用户消息是app自动发送的执行回执或统计数据，不是Joe本人说的话。回顾类请求的统计数字以系统消息为准，你只负责解读和建议，不要自己重算。`;
+}
+
+function aiPush(msg){
+  D.aiChat.push({...msg, ts:Date.now()});
+  if(D.aiChat.length>60) D.aiChat = D.aiChat.slice(-60);
+  save(); renderAiChat();
+}
+function renderAiPage(){
+  const parts = [];
+  parts.push(aiReady('chat') ? '对话:'+aiCfg('chat').model : '对话模型未配置');
+  parts.push(aiReady('vision') ? '视觉:'+aiCfg('vision').model : '视觉未配');
+  if(aiReady('voice')) parts.push('语音:'+aiCfg('voice').model);
+  document.getElementById('aiStatus').textContent = parts.join(' · ');
+  document.getElementById('aiMicBtn').style.display = aiReady('voice') ? 'flex' : 'none';
+  renderAiChat();
+}
+function renderAiChat(){
+  const box = document.getElementById('aiChatBox');
+  if(!D.aiChat.length){
+    box.innerHTML = `<div class="aihint">试试对我说：<br>“今天练了肩，推肩40kg每组10次做4组，练了70分钟”<br>“午饭吃了碗红油米线加个蛋”<br>“把今天午餐存成套餐叫工作餐”<br>“晚上想吃黄焖鸡，配额还够吗”</div>`;
+    return;
+  }
+  box.innerHTML = D.aiChat.map((m,i)=>{
+    if(m.role==='exec') return `<div class="aimsg exec"><div class="bub">${esc(m.brief||m.text)}</div></div>`;
+    if(m.role==='user') return `<div class="aimsg user"><div class="bub">${m.thumb?`<img src="${m.thumb}">`:''}${esc(m.text)}</div></div>`;
+    let h = `<div class="aimsg bot"><div class="bub">${esc(m.text)}</div></div>`;
+    if(m.cards) h += m.cards.map((c,ci)=>aiCardHtml(c,i,ci)).join('');
+    return h;
+  }).join('');
+  if(document.getElementById('page-ai').classList.contains('active'))
+    requestAnimationFrame(()=>window.scrollTo(0, document.body.scrollHeight));
+}
+function aiCardHtml(c, mi, ci){
+  const a = c.action;
+  let ttl='', rows='', foot='';
+  if(a.type==='log_strength'){
+    ttl = `记录训练 <span class="tag">练${esc(a.dayName)}</span>`;
+    rows = a.entries.map(e=>`<div class="rowi"><span>${esc(e.ex)}</span><span class="m">${e.w}kg × ${e.r}次 × ${e.s}组</span></div>`).join('');
+    const kcal = Math.round(STRENGTH_MET*3.5*D.profile.weight/200*(a.min||70));
+    foot = `${a.min||70}分钟 · 估算消耗 ${kcal} kcal`;
+  } else if(a.type==='log_cardio'){
+    ttl = '记录有氧';
+    const met = (CARDIO.find(x=>x[0]===a.name)||CARDIO[CARDIO.length-1])[1];
+    const kcal = Math.round(met*3.5*D.profile.weight/200*a.min);
+    rows = `<div class="rowi"><span>${esc(a.name)}</span><span class="m">${a.min}分钟 · ${kcal}kcal · 碳水+${Math.round(kcal/4)}g</span></div>`;
+  } else if(a.type==='log_food'){
+    ttl = `记录饮食 <span class="tag">${MEAL_NAMES[a.meal]||a.meal}</span>`;
+    rows = a.items.map(it=>`<div class="rowi"><span>${esc(it.name)}${it.amt?' · '+esc(it.amt):''}${it.is_new?' <span class="fbadge ai">新入库</span>':''}</span><span class="m">${Math.round(it.c*4+it.p*4+it.f*9)}kcal · 碳${Math.round(it.c)} 蛋${Math.round(it.p)} 脂${Math.round(it.f)}</span></div>`).join('');
+    if(c.status==='pending'){
+      const day=getDay(curDate), q=quotas(day), intake=dayIntake(day);
+      const aC=a.items.reduce((s,it)=>s+it.c,0), aP=a.items.reduce((s,it)=>s+it.p,0), aF=a.items.reduce((s,it)=>s+it.f,0);
+      foot = `确认后今日剩余：碳 ${Math.round(q.c-intake.c-aC)}g · 蛋 ${Math.round(q.p-intake.p-aP)}g · 脂 ${Math.round(q.f-intake.f-aF)}g`;
+    }
+  } else if(a.type==='add_food'){
+    ttl = '新食物入库';
+    rows = `<div class="rowi"><span>${esc(a.name)} <span class="fbadge user">自建</span></span><span class="m">每份${esc(a.serv||'1份')}${a.servG?'('+a.servG+'g)':''} · ${Math.round(a.c*4+a.p*4+a.f*9)}kcal · 碳${a.c} 蛋${a.p} 脂${a.f}</span></div>`;
+  } else if(a.type==='save_combo'){
+    ttl = '存为套餐';
+    const items = getDay(curDate).meals[a.meal].filter(it=>!it.pending);
+    rows = `<div class="rowi"><span>${esc(a.name)} <span class="fbadge combo">自建套餐</span></span><span class="m">${MEAL_NAMES[a.meal]} · ${items.map(it=>it.name).join('+')||'（该餐暂无记录）'}</span></div>`;
+  } else if(a.type==='add_exercise' || a.type==='remove_exercise'){
+    ttl = a.type==='add_exercise' ? '动作库添加' : '动作库移除';
+    rows = `<div class="rowi"><span>${esc(a.ex)}</span><span class="m">${esc(a.dayName)}日动作库</span></div>`;
+  } else if(a.type==='log_weight'){
+    ttl = '记录体重';
+    rows = `<div class="rowi"><span>${a.kg} kg</span><span class="m">${curDate}</span></div>`;
+  }
+  const btns = c.status==='pending'
+    ? `<div class="btns"><button class="ok" onclick="aiConfirm(${mi},${ci})">确认</button><button class="no" onclick="aiCancel(${mi},${ci})">取消</button></div>`
+    : `<div class="stamp ${c.status==='done'?'okc':'noc'}">${c.status==='done'?'✓ 已执行':'已取消'}</div>`;
+  return `<div class="aicard ${c.status!=='pending'?'done':''}"><div class="ttl">${ttl}</div>${rows}${foot?`<div class="foot">${foot}</div>`:''}${btns}</div>`;
+}
+function aiValidate(a){
+  try{
+    if(a.type==='log_strength') return !!(D.split.some(s=>s.name===a.dayName) && a.entries && a.entries.length && a.entries.every(e=>e.ex && e.w>=0 && e.w<500 && e.r>0 && e.r<200 && e.s>0 && e.s<30));
+    if(a.type==='log_cardio') return !!(a.name && a.min>0 && a.min<600);
+    if(a.type==='log_food') return !!(MEAL_NAMES[a.meal] && a.items && a.items.length && a.items.every(it=>it.name && it.c>=0 && it.c<1000 && it.p>=0 && it.p<500 && it.f>=0 && it.f<500));
+    if(a.type==='add_food') return !!(a.name && a.c>=0 && a.p>=0 && a.f>=0);
+    if(a.type==='save_combo') return !!(a.name && MEAL_NAMES[a.meal]);
+    if(a.type==='add_exercise' || a.type==='remove_exercise') return !!(a.ex && D.split.some(s=>s.name===a.dayName));
+    if(a.type==='log_weight') return a.kg>40 && a.kg<200;
+  }catch(e){}
+  return false;
+}
+function aiExec(a){
+  const day = getDay(curDate);
+  if(a.type==='log_strength'){
+    const sd = D.split.find(s=>s.name===a.dayName);
+    const min = +a.min||70;
+    const kcal = Math.round(STRENGTH_MET*3.5*D.profile.weight/200*min);
+    day.workouts.push({kind:'strength', day:sd.key, name:'练'+sd.name, entries:a.entries.map(e=>({ex:''+e.ex, w:+e.w||0, r:+e.r||0, s:+e.s||0})), min, kcal});
+    day.type = 'train';
+    return `已记录 练${sd.name} · ${a.entries.length}个动作 · ${min}min · ${kcal}kcal`;
+  }
+  if(a.type==='log_cardio'){
+    const name = CARDIO.some(x=>x[0]===a.name) ? a.name : '其他有氧';
+    const met = CARDIO.find(x=>x[0]===name)[1];
+    const kcal = Math.round(met*3.5*D.profile.weight/200*a.min);
+    day.workouts.push({kind:'cardio', name, min:+a.min, kcal});
+    if(day.type!=='train') day.type = 'cardio';
+    return `已记录 ${name} ${a.min}分钟 · ${kcal}kcal`;
+  }
+  if(a.type==='log_food'){
+    for(const it of a.items){
+      day.meals[a.meal].push({name:''+it.name, amt:it.amt||'', qty:1, mode:'serv', c:+(+it.c).toFixed(1), p:+(+it.p).toFixed(1), f:+(+it.f).toFixed(1)});
+      if(it.is_new && it.lib && !D.foods.some(f=>f.name===it.name)){
+        D.foods.push({name:''+it.name, cat:'AI估算', serv:it.lib.serv||'1份', servG:+it.lib.servG||0, c:+it.lib.c||+it.c, p:+it.lib.p||+it.p, f:+it.lib.f||+it.f, uses:1});
+        D.removedFoods = D.removedFoods.filter(n=>n!==it.name);
+      }
+      const f = D.foods.find(x=>x.name===it.name);
+      if(f){ f.uses=(f.uses||0)+1; pushRecent(it.name); }
+    }
+    return `已记录 ${MEAL_NAMES[a.meal]} +${a.items.length}项`;
+  }
+  if(a.type==='add_food'){
+    if(D.foods.some(f=>f.name===a.name)) return `「${a.name}」已在库中，未重复添加`;
+    D.foods.push({name:''+a.name, cat:'自定义', serv:a.serv||'1份', servG:+a.servG||0, c:+a.c, p:+a.p, f:+a.f, uses:0, user:true});
+    D.removedFoods = D.removedFoods.filter(n=>n!==a.name);
+    return `已入库 ${a.name}（自建）`;
+  }
+  if(a.type==='save_combo'){
+    const items = day.meals[a.meal].filter(it=>!it.pending).map(it=>({...it}));
+    if(items.length<2) return null;
+    if(D.combos.some(c=>c.name===a.name) || D.foods.some(f=>f.name===a.name)) return `「${a.name}」名字已存在，未保存`;
+    D.combos.push({name:''+a.name, items, uses:1});
+    D.removedCombos = D.removedCombos.filter(n=>n!==a.name);
+    return `已存为套餐「${a.name}」· ${items.length}项`;
+  }
+  if(a.type==='add_exercise'){
+    const sd = D.split.find(s=>s.name===a.dayName);
+    if(sd.ex.includes(a.ex)) return `「${a.ex}」已在${sd.name}日动作库`;
+    sd.ex.push(''+a.ex); D.splitUpd = Date.now();
+    return `已把 ${a.ex} 加入${sd.name}日动作库`;
+  }
+  if(a.type==='remove_exercise'){
+    const sd = D.split.find(s=>s.name===a.dayName);
+    sd.ex = sd.ex.filter(e=>e!==a.ex); D.splitUpd = Date.now();
+    return `已从${sd.name}日动作库移除 ${a.ex}`;
+  }
+  if(a.type==='log_weight'){
+    D.weights = D.weights.filter(w=>w.d!==curDate);
+    D.weights.push({d:curDate, kg:+a.kg});
+    D.weights.sort((x,y)=>x.d<y.d?-1:1);
+    D.profile.weight = D.weights[D.weights.length-1].kg;
+    return `已记录体重 ${a.kg}kg`;
+  }
+  return null;
+}
+function aiConfirm(mi, ci){
+  const c = D.aiChat[mi] && D.aiChat[mi].cards && D.aiChat[mi].cards[ci];
+  if(!c || c.status!=='pending') return;
+  const receipt = aiExec(c.action);
+  if(receipt===null){ toast('该餐记录不足2项，无法存套餐'); return; }
+  c.status = 'done';
+  touch(curDate);
+  aiPush({role:'exec', text:receipt});
+  renderToday(); renderTrain(); renderTrend(); autoSync();
+}
+function aiCancel(mi, ci){
+  const c = D.aiChat[mi] && D.aiChat[mi].cards && D.aiChat[mi].cards[ci];
+  if(!c || c.status!=='pending') return;
+  c.status = 'no';
+  aiPush({role:'exec', text:'用户取消了动作：'+c.action.type});
+}
+function aiParse(txt){
+  try{
+    let t = txt.trim().replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```\s*$/,'').trim();
+    const s = t.indexOf('{'), e = t.lastIndexOf('}');
+    if(s<0 || e<=s) return null;
+    const o = JSON.parse(t.slice(s, e+1));
+    if(typeof o.reply !== 'string') return null;
+    if(!Array.isArray(o.actions)) o.actions = [];
+    return o;
+  }catch(e){ return null; }
+}
+async function aiCall(cfg, messages){
+  const res = await fetch(cfg.base.replace(/\/$/,'')+'/chat/completions', {
+    method:'POST', headers:{'Content-Type':'application/json', Authorization:'Bearer '+cfg.key},
+    body: JSON.stringify({model:cfg.model, temperature:0.2, messages})
+  });
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const j = await res.json();
+  return j.choices[0].message.content;
+}
+async function sendAI(){
+  const inp = document.getElementById('aiInput');
+  const text = inp.value.trim();
+  const img = aiPendingImg;
+  if(!text && !img) return;
+  if(aiBusy){ toast('等上一条回复完'); return; }
+  if(img && !aiReady('vision')){ toast('先在设置页配置视觉模型'); return; }
+  if(!img && !aiReady('chat')){ toast('先在设置页配置对话模型'); return; }
+  inp.value=''; aiPendingImg=null; renderAiAttach();
+  aiPush({role:'user', text: text || '识别这张图', thumb: img?img.thumb:null});
+  await aiRequest(img);
+}
+async function aiRequest(img){
+  aiBusy = true;
+  document.getElementById('aiSendBtn').disabled = true;
+  const box = document.getElementById('aiChatBox');
+  box.insertAdjacentHTML('beforeend', '<div class="aimsg bot" id="aiTyping"><div class="bub">…</div></div>');
+  window.scrollTo(0, document.body.scrollHeight);
+  try{
+    const cfg = img ? aiCfg('vision') : aiCfg('chat');
+    const msgs = [{role:'system', content: aiSystemPrompt()}];
+    for(const m of D.aiChat.slice(-14)){
+      if(m.role==='user') msgs.push({role:'user', content:m.text});
+      else if(m.role==='assistant') msgs.push({role:'assistant', content: m.raw || JSON.stringify({reply:m.text, actions:[]})});
+      else if(m.role==='exec') msgs.push({role:'user', content:'[系统] '+m.text});
+    }
+    if(img){
+      const last = msgs[msgs.length-1];
+      last.content = [{type:'text', text:last.content}, {type:'image_url', image_url:{url:img.data}}];
+    }
+    let raw = await aiCall(cfg, msgs);
+    let parsed = aiParse(raw);
+    if(!parsed){
+      msgs.push({role:'assistant', content:raw});
+      msgs.push({role:'user', content:'[系统] 你上一条输出不符合协议。必须只输出JSON对象 {"reply":"...","actions":[...]}，不要任何其他文字或代码块。重新输出。'});
+      raw = await aiCall(cfg, msgs);
+      parsed = aiParse(raw);
+    }
+    if(!parsed){
+      aiPush({role:'assistant', text: raw.slice(0,600), raw});
+    } else {
+      const valid = (parsed.actions||[]).filter(aiValidate);
+      const dropped = (parsed.actions||[]).length - valid.length;
+      aiPush({role:'assistant', text: parsed.reply + (dropped ? `\n（${dropped}个动作未通过校验已忽略）` : ''), raw, cards: valid.map(a=>({action:a, status:'pending'}))});
+    }
+  }catch(e){
+    aiPush({role:'assistant', text:'请求失败：'+e.message+'。检查网络或设置页模型配置。'});
+  }
+  const t = document.getElementById('aiTyping'); if(t) t.remove();
+  aiBusy = false;
+  document.getElementById('aiSendBtn').disabled = false;
+}
+function aiClear(){
+  toast('清空全部对话记录？', {label:'确认', fn:()=>{ D.aiChat=[]; save(); renderAiChat(); }});
+}
+function aiReview(kind){
+  if(!aiReady('chat')){ toast('先在设置页配置对话模型'); return; }
+  if(aiBusy){ toast('等上一条回复完'); return; }
+  const stats = kind==='day' ? aiDayStats(curDate) : aiWeekStats();
+  aiPush({role:'user', text: kind==='day' ? '请做今日回顾' : '请做本周回顾'});
+  aiPush({role:'exec', text:'统计数据（app自动计算）：\n'+stats, brief:'已附上'+(kind==='day'?'今日':'本周')+'统计数据'});
+  aiRequest(null);
+}
+function aiDayStats(ds){
+  const day = D.days[ds];
+  if(!day) return ds+' 无记录';
+  const q = quotas(day), i = dayIntake(day), b = dayBurn(day);
+  const defP = b ? Math.round((b-i.kcal)/b*100) : 0;
+  return `${ds} ${({train:'力量日',rest:'休息日',cardio:'有氧日'})[day.type]} 摄入${i.kcal}kcal(碳${Math.round(i.c)}/${q.c} 蛋${Math.round(i.p)}/${q.p} 脂${Math.round(i.f)}/${q.f}) 消耗${b} 缺口${b-i.kcal}kcal(${defP}%，健康区间${goalBand().join('~')}%) 训练:${day.workouts.map(w=>w.name+w.min+'min'+w.kcal+'kcal').join('、')||'无'} 补剂打卡:${Object.values(day.supps||{}).filter(Boolean).length}项`;
+}
+function aiWeekStats(){
+  const out = [];
+  for(let n=6; n>=0; n--){
+    const ds = dateOffset(curDate, -n);
+    if(D.days[ds]) out.push(aiDayStats(ds));
+  }
+  const ws = D.weights.slice(-8);
+  return (out.join('\n')||'本周无记录') + `\n体重序列: ${ws.map(w=>w.d.slice(5)+':'+w.kg+'kg').join(', ')||'无'}`;
+}
+/* 图片管线：iOS input[file] 原生调照片库，canvas 压缩控制体积 */
+function compressImage(file, maxDim, q){
+  return new Promise((res, rej)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const sc = Math.min(1, maxDim/Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(img.width*sc));
+      cv.height = Math.max(1, Math.round(img.height*sc));
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(img.src);
+      res(cv.toDataURL('image/jpeg', q));
+    };
+    img.onerror = ()=>rej(new Error('图片读取失败'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+function pickAiImage(){
+  if(aiPendingImg){ aiPendingImg=null; renderAiAttach(); return; }
+  mealImgTarget = null;
+  document.getElementById('aiImgInput').click();
+}
+function renderAiAttach(){
+  const btn = document.getElementById('aiAttachBtn');
+  btn.innerHTML = aiPendingImg
+    ? `<img src="${aiPendingImg.thumb}"><span style="position:absolute;top:-5px;right:-5px;background:#DC2626;color:#fff;border-radius:50%;width:16px;height:16px;font-size:11px;line-height:16px;text-align:center;">✕</span>`
+    : '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="3"/><circle cx="9" cy="10.5" r="1.6"/><path d="M3.5 17l5-4.5 4 3.5 3.5-3 4.5 4"/></svg>';
+}
+async function aiImgPicked(inp){
+  const file = inp.files[0];
+  inp.value = '';
+  if(!file) return;
+  try{
+    const data = await compressImage(file, 1024, 0.8);
+    const thumb = await compressImage(file, 160, 0.6);
+    if(mealImgTarget){
+      const meal = mealImgTarget; mealImgTarget = null;
+      if(!aiReady('vision')){ toast('先在设置页配置视觉模型（设置 → AI 模型配置②）'); return; }
+      switchPage('ai');
+      aiPush({role:'user', text:`识别图里的食物，记到${MEAL_NAMES[meal]}`, thumb});
+      await aiRequest({data, thumb});
+    } else {
+      aiPendingImg = {data, thumb};
+      renderAiAttach();
+      if(!aiReady('vision')) toast('提示：还没配置视觉模型，发送会失败');
+    }
+  }catch(e){ toast(e.message); }
+}
+function mealCam(meal){
+  mealImgTarget = meal;
+  document.getElementById('aiImgInput').click();
+}
+/* 语音：配置了ASR模型才显示麦克风；未配置用输入法语音输入 */
+let recRec = null, recChunks = [];
+async function toggleRec(){
+  if(recRec){ recRec.stop(); return; }
+  if(!aiReady('voice')){ toast('先在设置页配置语音模型'); return; }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    recChunks = [];
+    recRec = new MediaRecorder(stream);
+    recRec.ondataavailable = e=>recChunks.push(e.data);
+    recRec.onstop = async ()=>{
+      stream.getTracks().forEach(t=>t.stop());
+      const blob = new Blob(recChunks, {type: recRec.mimeType||'audio/webm'});
+      recRec = null;
+      document.getElementById('aiMicBtn').classList.remove('rec');
+      await aiTranscribe(blob);
+    };
+    recRec.start();
+    document.getElementById('aiMicBtn').classList.add('rec');
+    toast('录音中，再点一次结束');
+  }catch(e){ recRec=null; toast('无法访问麦克风：'+e.message); }
+}
+async function aiTranscribe(blob){
+  const cfg = aiCfg('voice');
+  try{
+    const fd = new FormData();
+    fd.append('model', cfg.model);
+    fd.append('file', blob, 'rec.webm');
+    const r = await fetch(cfg.base.replace(/\/$/,'')+'/audio/transcriptions', {method:'POST', headers:{Authorization:'Bearer '+cfg.key}, body:fd});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j = await r.json();
+    const inp = document.getElementById('aiInput');
+    inp.value = (inp.value+' '+(j.text||'')).trim();
+    inp.focus();
+  }catch(e){ toast('语音转写失败：'+e.message); }
+}
+function switchPage(p){
+  const btn = document.querySelector(`.nav button[data-page="${p}"]`);
+  if(btn) btn.click();
 }
 
 /* ================= 日历 ================= */
@@ -1655,6 +2126,10 @@ function renderSet(){
   document.getElementById('aiBase').value = a.base;
   document.getElementById('aiKey').value = a.key;
   document.getElementById('aiModel').value = a.model;
+  const vi = D.settings.aiVision, vo = D.settings.aiVoice;
+  document.getElementById('viBase').value = vi.base; document.getElementById('viKey').value = vi.key; document.getElementById('viModel').value = vi.model;
+  document.getElementById('voBase').value = vo.base; document.getElementById('voKey').value = vo.key; document.getElementById('voModel').value = vo.model;
+  document.getElementById('aiCfgStat').textContent = ['对话','视觉','语音'].filter((_,i)=>[aiReady('chat'),aiReady('vision'),aiReady('voice')][i]).join('+') || '未配置';
   document.getElementById('dataStat').textContent = `${Object.keys(D.days).length}天记录 · ${D.foods.length}条食物`;
   // BMI + 代谢测算
   const h = p.height/100;
@@ -1725,8 +2200,11 @@ function saveProfile(){
   save(); renderSet(); renderToday(); renderTrend(); toast('已保存，配额方案已更新');
 }
 function saveAI(){
-  D.settings.ai = {base:document.getElementById('aiBase').value.trim(), key:document.getElementById('aiKey').value.trim(), model:document.getElementById('aiModel').value.trim()};
-  save(); toast('已保存');
+  const rd = id => document.getElementById(id).value.trim();
+  D.settings.ai = {base:rd('aiBase'), key:rd('aiKey'), model:rd('aiModel')};
+  D.settings.aiVision = {base:rd('viBase'), key:rd('viKey'), model:rd('viModel')};
+  D.settings.aiVoice = {base:rd('voBase'), key:rd('voKey'), model:rd('voModel')};
+  save(); renderSet(); renderAiPage(); toast('已保存全部模型配置');
 }
 function exportData(){
   const blob = new Blob([JSON.stringify(D,null,1)], {type:'application/json'});
@@ -1788,7 +2266,8 @@ async function doSync(silent){
       throw new Error('拉取失败 HTTP '+getRes.status);
     };
     const push = async (sha) => {
-      const body = {message:'sync '+new Date().toISOString(), content:b64encode(JSON.stringify(D,null,1))};
+      // aiChat 仅本地：聊天记录（含图片缩略图）不进同步仓库
+      const body = {message:'sync '+new Date().toISOString(), content:b64encode(JSON.stringify({...D, aiChat:undefined},null,1))};
       if(sha) body.sha = sha;
       return fetch(url, {method:'PUT', headers:hdr, body:JSON.stringify(body)});
     };
@@ -1874,11 +2353,13 @@ document.querySelectorAll('.nav button').forEach(btn=>{
     btn.classList.add('on');
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
     document.getElementById('page-'+btn.dataset.page).classList.add('active');
+    document.getElementById('aiBar').classList.toggle('show', btn.dataset.page==='ai');
     renderAll();
-    window.scrollTo(0,0);
+    if(btn.dataset.page==='ai') requestAnimationFrame(()=>window.scrollTo(0,document.body.scrollHeight));
+    else window.scrollTo(0,0);
   };
 });
-function renderAll(){ renderToday(); renderTrain(); renderTrend(); renderSet(); }
+function renderAll(){ renderToday(); renderTrain(); renderTrend(); renderSet(); renderAiPage(); }
 renderAll();
 if(ghConfigured()) doSync(true);
 </script>
