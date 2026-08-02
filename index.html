@@ -1311,12 +1311,14 @@ function aiSystemPrompt(){
 {"type":"log_cardio","name":"有氧类型(限:${CARDIO.map(c=>c[0]).join('/')})","min":分钟}
 {"type":"log_food","meal":"breakfast|lunch|dinner|snack","items":[{"name":"食物名","amt":"份量描述","c":实际摄入碳水g,"p":蛋白g,"f":脂肪g,"is_new":布尔,"lib":{"serv":"每份说明","servG":每份克重,"c":每份碳水,"p":每份蛋白,"f":每份脂肪}}]}
 （c/p/f是这次实际吃下的总量；is_new=true表示食物库没有，此时必须带lib给出单份基准以便入库；库里有的食物用库内名称且不带lib）
+{"type":"set_meal","meal":"breakfast|lunch|dinner|snack","items":[与log_food相同的items格式]}（用该列表整体替换该餐现有记录。删除某样=给出删除后剩余的完整列表；清空该餐=空数组；改份量=给出修改后的完整列表）
 {"type":"add_food","name":"","serv":"每份说明","servG":每份克重,"c":每份碳水,"p":每份蛋白,"f":每份脂肪}（用户主动提供营养数据的新食物）
 {"type":"save_combo","name":"套餐名","meal":"breakfast|lunch|dinner|snack"}（把今天该餐已记录的食物存为套餐）
 {"type":"add_exercise","dayName":"训练日名","ex":"动作名"}
 {"type":"remove_exercise","dayName":"训练日名","ex":"动作名"}
 {"type":"log_weight","kg":数值}
 【规则】食物、动作、训练日优先精确匹配下方库里的现有名称，匹配不到才造新名并标is_new。外卖/餐馆食物按重油重调味口径估算热量，宁可高估不低估。数值明显异常（重量>300kg、单餐>3000kcal）先追问确认。用户没说哪一餐时按当前时间推断并在reply里说明。饮食建议要对照该餐剩余配额给结论。
+【重要边界】log_food只会往一餐里追加，绝不能用它做修改或删除；要修改/删除某餐的已有记录，必须用set_meal给出修改后的完整列表。已记录的训练无法通过对话修改或删除，用户提出时如实说明并引导他去训练页点击那条记录编辑。没有对应动作类型的操作不要假装完成。
 【今天 ${curDate} 周${'日一二三四五六'[new Date(curDate).getDay()]}】
 日型:${({train:'力量日',rest:'休息日',cardio:'有氧日'})[day.type]} · 体重:${D.profile.weight}kg · 目标:${GOALS[D.profile.goal]}
 今日配额: 碳${q.c} 蛋${q.p} 脂${q.f}g ≈${q.kcal}kcal · 已摄入: 碳${Math.round(intake.c)} 蛋${Math.round(intake.p)} 脂${Math.round(intake.f)} = ${intake.kcal}kcal
@@ -1380,6 +1382,15 @@ function aiCardHtml(c, mi, ci){
       const aC=a.items.reduce((s,it)=>s+it.c,0), aP=a.items.reduce((s,it)=>s+it.p,0), aF=a.items.reduce((s,it)=>s+it.f,0);
       foot = `确认后今日剩余：碳 ${Math.round(q.c-intake.c-aC)}g · 蛋 ${Math.round(q.p-intake.p-aP)}g · 脂 ${Math.round(q.f-intake.f-aF)}g`;
     }
+  } else if(a.type==='set_meal'){
+    ttl = `修改饮食 <span class="tag">${MEAL_NAMES[a.meal]||a.meal}</span>`;
+    rows = a.items.length
+      ? a.items.map(it=>`<div class="rowi"><span>${esc(it.name)}${it.amt?' · '+esc(it.amt):''}${it.is_new?' <span class="fbadge ai">新入库</span>':''}</span><span class="m">${Math.round(it.c*4+it.p*4+it.f*9)}kcal · 碳${Math.round(it.c)} 蛋${Math.round(it.p)} 脂${Math.round(it.f)}</span></div>`).join('')
+      : `<div class="rowi"><span style="color:var(--t3)">清空该餐记录</span></div>`;
+    if(c.status==='pending'){
+      const cur = getDay(curDate).meals[a.meal].filter(it=>!it.pending);
+      foot = `将替换${MEAL_NAMES[a.meal]}现有 ${cur.length} 项记录（${cur.map(it=>it.name).join('+')||'空'}）`;
+    }
   } else if(a.type==='add_food'){
     ttl = '新食物入库';
     rows = `<div class="rowi"><span>${esc(a.name)} <span class="fbadge user">自建</span></span><span class="m">每份${esc(a.serv||'1份')}${a.servG?'('+a.servG+'g)':''} · ${Math.round(a.c*4+a.p*4+a.f*9)}kcal · 碳${a.c} 蛋${a.p} 脂${a.f}</span></div>`;
@@ -1404,6 +1415,7 @@ function aiValidate(a){
     if(a.type==='log_strength') return !!(D.split.some(s=>s.name===a.dayName) && a.entries && a.entries.length && a.entries.every(e=>e.ex && e.w>=0 && e.w<500 && e.r>0 && e.r<200 && e.s>0 && e.s<30));
     if(a.type==='log_cardio') return !!(a.name && a.min>0 && a.min<600);
     if(a.type==='log_food') return !!(MEAL_NAMES[a.meal] && a.items && a.items.length && a.items.every(it=>it.name && it.c>=0 && it.c<1000 && it.p>=0 && it.p<500 && it.f>=0 && it.f<500));
+    if(a.type==='set_meal') return !!(MEAL_NAMES[a.meal] && Array.isArray(a.items) && a.items.every(it=>it.name && it.c>=0 && it.c<1000 && it.p>=0 && it.p<500 && it.f>=0 && it.f<500));
     if(a.type==='add_food') return !!(a.name && a.c>=0 && a.p>=0 && a.f>=0);
     if(a.type==='save_combo') return !!(a.name && MEAL_NAMES[a.meal]);
     if(a.type==='add_exercise' || a.type==='remove_exercise') return !!(a.ex && D.split.some(s=>s.name===a.dayName));
@@ -1440,6 +1452,17 @@ function aiExec(a){
       if(f){ f.uses=(f.uses||0)+1; pushRecent(it.name); }
     }
     return `已记录 ${MEAL_NAMES[a.meal]} +${a.items.length}项`;
+  }
+  if(a.type==='set_meal'){
+    const pendings = day.meals[a.meal].filter(it=>it.pending);
+    day.meals[a.meal] = a.items.map(it=>({name:''+it.name, amt:it.amt||'', qty:1, mode:'serv', c:+(+it.c).toFixed(1), p:+(+it.p).toFixed(1), f:+(+it.f).toFixed(1)})).concat(pendings);
+    for(const it of a.items){
+      if(it.is_new && it.lib && !D.foods.some(f=>f.name===it.name)){
+        D.foods.push({name:''+it.name, cat:'AI估算', serv:it.lib.serv||'1份', servG:+it.lib.servG||0, c:+it.lib.c||+it.c, p:+it.lib.p||+it.p, f:+it.lib.f||+it.f, uses:1});
+        D.removedFoods = D.removedFoods.filter(n=>n!==it.name);
+      }
+    }
+    return `已把${MEAL_NAMES[a.meal]}修改为 ${a.items.length}项`;
   }
   if(a.type==='add_food'){
     if(D.foods.some(f=>f.name===a.name)) return `「${a.name}」已在库中，未重复添加`;
