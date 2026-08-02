@@ -223,6 +223,15 @@ canvas.chart{width:100%; height:auto; display:block;}
 .bwbox.warn{background:#FFF6E6; color:#B45309;}
 .bwbox.info{background:#EEF2FF; color:#4F63D8;}
 .bwbox.mute{background:#F4F7F5; color:#64748B; font-weight:500;}
+.fbadge{display:inline-block; margin-left:6px; padding:1px 6px; border-radius:6px; font-size:10.5px; font-weight:600; vertical-align:1px;}
+.fbadge.user{background:#ECFDF5; color:#059669;}
+.fbadge.ai{background:#EEF2FF; color:#4F63D8;}
+.fbadge.combo{background:#FFF6E6; color:#B45309;}
+.mgrow{display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line);}
+.mgrow .nm{flex:1; font-size:13.5px; color:var(--t2);}
+.mgrow button{border:0; background:#F1F5F4; color:var(--t2); border-radius:8px; width:32px; height:32px; font-size:14px; flex:none;}
+.mgrow button.rmv{background:#FEF2F2; color:#DC2626;}
+.mgrow button:disabled{opacity:.3;}
 .suppmg{display:flex; align-items:center; padding:11px 0; border-bottom:1px solid var(--line); font-size:14px;}
 .suppmg .tms{font-size:11.5px; color:var(--t3); margin-left:8px; flex:1;}
 .chk{display:inline-flex; align-items:center; gap:5px; margin-right:12px; font-size:13.5px; color:var(--t2);}
@@ -361,6 +370,14 @@ canvas.chart{width:100%; height:auto; display:block;}
       <button class="btn" style="margin-top:14px;" onclick="saveProfile()">保存档案</button>
     </div>
     <div class="card">
+      <div class="ct"><span class="cico"><svg viewBox="0 0 24 24"><path d="M3 12h2.5M18.5 12H21M6.5 8.5v7M17.5 8.5v7M9 6.5v11M15 6.5v11M9 12h6"/></svg></span>
+        <span class="t">训练方案</span></div>
+      <div class="seg" id="splitPreset" style="margin-bottom:12px;"></div>
+      <div id="splitDays"></div>
+      <div class="row" style="margin-top:10px;"><input id="newDayName" placeholder="新训练日名称，如：手臂"><button class="btn sm" onclick="addSplitDay()">添加</button></div>
+      <div class="hint" style="margin-top:8px;">改名直接编辑；动作库去训练页各训练日「管理动作」里调整。切换预置方案会重置训练日和动作库，历史记录不受影响。</div>
+    </div>
+    <div class="card">
       <div class="ct"><span class="cico"><svg viewBox="0 0 24 24"><path d="M7 18.5a4.5 4.5 0 1 1 .8-8.9A5.5 5.5 0 0 1 18.4 11.5 3.6 3.6 0 0 1 17.2 18.5H7z"/></svg></span>
         <span class="t">GitHub 同步</span></div>
       <label class="f">用户名</label><input id="ghOwner" placeholder="joechongchzh">
@@ -415,6 +432,7 @@ canvas.chart{width:100%; height:auto; display:block;}
       <button class="btn gray" onclick="showManualFood()">✍️ 手动输入营养数据</button>
       <div id="manualFood" style="display:none; margin-top:10px;">
         <div class="row"><input id="mC" type="number" placeholder="碳水g" inputmode="decimal"><input id="mP" type="number" placeholder="蛋白g" inputmode="decimal"><input id="mF" type="number" placeholder="脂肪g" inputmode="decimal"></div>
+        <input id="mG" type="number" placeholder="每份克重g（选填，填了才能按克记）" inputmode="decimal" style="margin-top:8px;">
         <button class="btn" onclick="addManualFood()">添加并入库</button>
       </div>
     </div>
@@ -497,6 +515,26 @@ canvas.chart{width:100%; height:auto; display:block;}
   </div>
 </div>
 
+<!-- workout edit sheet -->
+<div class="sheet" id="wEditSheet">
+  <div class="grab"></div>
+  <div class="hd"><span id="wEditTitle">编辑训练</span><button class="x" onclick="closeSheets()">✕</button></div>
+  <div class="bd" id="wEditBody"></div>
+</div>
+
+<!-- save combo sheet -->
+<div class="sheet" id="comboSheet">
+  <div class="grab"></div>
+  <div class="hd"><span>存为套餐</span><button class="x" onclick="closeSheets()">✕</button></div>
+  <div class="bd">
+    <div class="hint" id="comboItems" style="margin-bottom:10px; line-height:1.7;"></div>
+    <label class="f">套餐名称</label>
+    <input id="comboName" placeholder="如：公司午餐标配">
+    <button class="btn" style="margin-top:14px;" onclick="saveCombo()">保存套餐</button>
+    <div class="hint" style="margin-top:10px;">保存后在食物选择的「常用」里，一键整套添加，添加后仍可单项修改。</div>
+  </div>
+</div>
+
 <div class="toast" id="toast"><span id="toastMsg"></span><button class="act" id="toastAct" style="display:none;"></button></div>
 
 <script>
@@ -511,11 +549,22 @@ const MEAL_SVG = {
   snack:'<svg viewBox="0 0 24 24"><path d="M4 8h16l-2 12H6L4 8z"/><path d="M8.5 8a3.5 3.5 0 0 1 7 0"/></svg>',
   dinner:'<svg viewBox="0 0 24 24"><path d="M20 13A8 8 0 1 1 11 4a6.5 6.5 0 0 0 9 9z"/></svg>',
 };
-const PLAN = {
-  chest:{name:'胸', ex:['杠铃卧推','杠铃上斜卧推','固定器械推胸','蝴蝶机夹胸','双杠臂屈伸(窄距)']},
-  shoulder:{name:'肩', ex:['杠铃推肩','站姿飞鸟','俯卧飞鸟','蝴蝶机反向飞鸟','上斜推肩']},
-  back:{name:'背', ex:['高位下拉(宽握)','高位下拉(窄握)','坐姿划船','器械划船','龙门架划船']},
-  leg:{name:'腿', ex:['杠铃深蹲','腿举机','俯卧腿屈伸','坐姿腿屈伸']},
+const SPLIT_PRESETS = {
+  three: {name:'三分化', days:[
+    {key:'push', name:'推', ex:['杠铃卧推','杠铃上斜卧推','杠铃推肩','站姿飞鸟','绳索下压']},
+    {key:'pull', name:'拉', ex:['高位下拉(宽握)','坐姿划船','器械划船','杠铃弯举']},
+    {key:'leg', name:'腿', ex:['杠铃深蹲','腿举机','俯卧腿屈伸','坐姿腿屈伸']}]},
+  four: {name:'四分化', days:[
+    {key:'chest', name:'胸', ex:['杠铃卧推','杠铃上斜卧推','固定器械推胸','蝴蝶机夹胸','双杠臂屈伸(窄距)']},
+    {key:'shoulder', name:'肩', ex:['杠铃推肩','站姿飞鸟','俯卧飞鸟','蝴蝶机反向飞鸟','上斜推肩']},
+    {key:'back', name:'背', ex:['高位下拉(宽握)','高位下拉(窄握)','坐姿划船','器械划船','龙门架划船']},
+    {key:'leg', name:'腿', ex:['杠铃深蹲','腿举机','俯卧腿屈伸','坐姿腿屈伸']}]},
+  five: {name:'五分化', days:[
+    {key:'chest', name:'胸', ex:['杠铃卧推','杠铃上斜卧推','固定器械推胸','蝴蝶机夹胸']},
+    {key:'back', name:'背', ex:['高位下拉(宽握)','高位下拉(窄握)','坐姿划船','器械划船']},
+    {key:'shoulder', name:'肩', ex:['杠铃推肩','站姿飞鸟','俯卧飞鸟','蝴蝶机反向飞鸟']},
+    {key:'leg', name:'腿', ex:['杠铃深蹲','腿举机','俯卧腿屈伸','坐姿腿屈伸']},
+    {key:'arm', name:'手臂', ex:['杠铃弯举','哑铃交替弯举','绳索下压','仰卧臂屈伸']}]},
 };
 const CARDIO = [['爬坡快走',6],['跑步',8],['游泳',7],['足球',8],['羽毛球',5.5],['网球',6.5],['骑行',6],['椭圆机',5],['其他有氧',5]];
 const STRENGTH_MET = 4.5;
@@ -639,6 +688,35 @@ function load(){
     d.ver = 2;
   }
   if(!d.foods || !d.foods.length) d.foods = seedFoods();
+  if(d.ver === 2){
+    // 训练方案：PLAN四分化 + customEx 合入可编辑的 split
+    d.split = SPLIT_PRESETS.four.days.map(x=>({key:x.key, name:x.name, ex:[...x.ex]}));
+    for(const k of Object.keys(d.customEx||{})){
+      const sd = d.split.find(s=>s.key===k);
+      if(sd) for(const e of d.customEx[k]) if(!sd.ex.includes(e)) sd.ex.push(e);
+    }
+    d.splitUpd = Date.now();
+    // 食物库：份量说明里带 g/ml 的解析出每份克重；默认库无克重基准的删除（数据补全留给AI阶段）
+    d.removedFoods = d.removedFoods || [];
+    for(const f of d.foods){
+      if(f.cat==='自定义') f.user = true;
+      if(f.cat==='套餐'){ f.user = true; f.cat = '自定义'; }
+      if(!f.servG){
+        const m = (f.serv||'').match(/(\d+(?:\.\d+)?)\s*(?:g|ml)/i);
+        if(m) f.servG = +m[1];
+      }
+    }
+    d.foods = d.foods.filter(f=>{
+      if(f.servG>0 || f.user || f.cat==='AI估算') return true;
+      d.removedFoods.push(f.name);
+      return false;
+    });
+    d.ver = 3;
+  }
+  d.split = d.split || SPLIT_PRESETS.four.days.map(x=>({key:x.key, name:x.name, ex:[...x.ex]}));
+  d.combos = d.combos || [];
+  d.removedFoods = d.removedFoods || [];
+  d.removedCombos = d.removedCombos || [];
   return d;
 }
 function save(){ localStorage.setItem(LS_KEY, JSON.stringify(D)); }
@@ -682,7 +760,8 @@ function quotas(day){
   const s = quotaScheme();
   const p = Math.round(s.pF*w), f = Math.round(s.fF*w);
   let c;
-  if(day.type==='train') c = s.cTrain*w;
+  // 原则：额外有氧消耗=额外补充碳水（kcal÷4），力量日与有氧日同口径，控制总缺口不失控
+  if(day.type==='train') c = s.cTrain*w + cardioKcal(day)/4;
   else if(day.type==='cardio') c = s.cRest*w + cardioKcal(day)/4;
   else c = s.cRest*w;
   c = Math.round(c);
@@ -762,8 +841,11 @@ function renderToday(){
   }
   const ck = cardioKcal(day);
   const chBox = document.getElementById('cardioHint');
-  chBox.style.display = day.type==='cardio' ? 'flex' : 'none';
-  chBox.innerHTML = day.type==='cardio' ? (ck? `<span>今日有氧消耗 ${ck} kcal → 碳水配额 +${Math.round(ck/4)}g</span>` : '<span>去训练页记录有氧，碳水配额自动追加</span>') : '';
+  const showCH = day.type==='cardio' || (day.type==='train' && ck>0);
+  chBox.style.display = showCH ? 'flex' : 'none';
+  chBox.innerHTML = !showCH ? '' : (day.type==='train'
+    ? `<span>力量 + 有氧 · 有氧消耗 ${ck} kcal → 碳水配额 +${Math.round(ck/4)}g</span>`
+    : (ck? `<span>今日有氧消耗 ${ck} kcal → 碳水配额 +${Math.round(ck/4)}g</span>` : '<span>去训练页记录有氧，碳水配额自动追加</span>'));
 
   const q = quotas(day);
   const intake = dayIntake(day);
@@ -824,7 +906,7 @@ function renderToday(){
         <div class="fi" onclick="editFood('${m.key}',${i})"><div class="nm">${it.name}${it.amt?' · '+it.amt:''}${it.pending?' ⏳':''}</div>
         <div class="meta">${it.pending?'待估算，同步后自动补全':`${Math.round(it.c*4+it.p*4+it.f*9)} kcal · 碳${Math.round(it.c)} 蛋${Math.round(it.p)} 脂${Math.round(it.f)}`}</div></div>
         <button class="del" onclick="delFood('${m.key}',${i})">✕</button></div>`).join('')}
-      <div class="mealbtns">${copyBtn}<button class="additem" onclick="openFoodSheet('${m.key}','${m.label}')">＋ 添加食物</button></div>
+      <div class="mealbtns">${copyBtn}${done.length>=2?`<button class="additem" onclick="openComboSave('${m.key}')">存为套餐</button>`:''}<button class="additem" onclick="openFoodSheet('${m.key}','${m.label}')">＋ 添加食物</button></div>
     </div>`;
   }).join('');
 
@@ -878,12 +960,12 @@ function drawRing(intake, target){
 }
 
 /* ================= 食物添加 / 编辑 ================= */
-let sheetMeal=null, sheetCat='最近', pickedFood=null, pickedQty=1, qtyMode='serv', editCtx=null;
+let sheetMeal=null, sheetCat='常用', pickedFood=null, pickedQty=1, qtyMode='serv', editCtx=null;
 function openFoodSheet(meal, label){
   sheetMeal = meal; editCtx = null;
   document.getElementById('foodSheetTitle').textContent = '添加到 · ' + label;
   document.getElementById('foodSearch').value='';
-  sheetCat = D.recent.length ? '最近' : '常用';
+  sheetCat = '常用';
   showSheet('foodSheet');
   renderFoodList();
 }
@@ -901,28 +983,47 @@ function closeQtySheet(){
   if(editCtx){ closeSheets(); }
   else if(!document.getElementById('foodSheet').classList.contains('show')) closeSheets();
 }
+function foodBadge(f){
+  if(f.user) return '<span class="fbadge user">自建</span>';
+  if(f.cat==='AI估算') return '<span class="fbadge ai">AI估算</span>';
+  return '';
+}
 function foodRowHtml(f){
   const kc = Math.round(f.c*4+f.p*4+f.f*9);
   const lastAmt = f.lastQty && f.lastQty!==1 ? (f.lastMode==='gram'?Math.round(f.lastQty*f.servG)+'g':f.lastQty+'份') : '';
-  return `<div class="foodrow"><div class="info" onclick="pickFood('${f.name.replace(/'/g,"\\'")}')"><div class="nm">${f.name}</div>
-    <div class="meta">${f.serv} · <b>${kc} kcal</b> · 碳${f.c} 蛋${f.p} 脂${f.f}${lastAmt?' · 上次'+lastAmt:''}</div></div>
+  return `<div class="foodrow"><div class="info" onclick="pickFood('${f.name.replace(/'/g,"\\'")}')"><div class="nm">${f.name}${foodBadge(f)}</div>
+    <div class="meta">每份 ${f.serv}${f.servG?'':' · 按份估算'} · <b>${kc} kcal</b> · 碳${f.c} 蛋${f.p} 脂${f.f}${lastAmt?' · 上次'+lastAmt:''}</div></div>
     <button class="addbtn" onclick="quickAdd('${f.name.replace(/'/g,"\\'")}')">＋</button></div>`;
+}
+function comboRowHtml(cb){
+  const kc = Math.round(cb.items.reduce((s,it)=>s+it.c*4+it.p*4+it.f*9,0));
+  const nm = cb.name.replace(/'/g,"\\'");
+  return `<div class="foodrow"><div class="info" onclick="addCombo('${nm}')"><div class="nm">${cb.name}<span class="fbadge combo">自建套餐</span></div>
+    <div class="meta">${cb.items.map(it=>it.name).join(' + ')} · <b>${kc} kcal</b></div></div>
+    <button class="del" style="background:none;border:0;color:#CBD5E1;font-size:14px;padding:8px;" onclick="delCombo('${nm}')">✕</button>
+    <button class="addbtn" onclick="addCombo('${nm}')">＋</button></div>`;
 }
 function renderFoodList(){
   const kw = document.getElementById('foodSearch').value.trim();
-  const cats = ['最近','常用','外卖','主食','肉蛋','水产','蔬菜','水果','乳豆','零食','饮品','套餐','调料','其他'];
+  const cats = ['常用','最近','外卖','主食','肉蛋','水产','蔬菜','水果','乳豆','零食','饮品','调料','其他'];
   document.getElementById('foodCats').innerHTML = kw ? '' : cats.map(c=>
     `<button class="pill ${sheetCat===c?'on':''}" onclick="sheetCat='${c}';renderFoodList()">${c}</button>`).join('');
   let list;
-  const known = ['外卖','主食','肉蛋','水产','蔬菜','水果','乳豆','零食','饮品','套餐','调料'];
-  if(kw) list = D.foods.filter(f=>f.name.toLowerCase().includes(kw.toLowerCase()));
+  const known = ['外卖','主食','肉蛋','水产','蔬菜','水果','乳豆','零食','饮品','调料'];
+  if(kw){
+    list = [...D.combos.filter(c=>c.name.toLowerCase().includes(kw.toLowerCase())),
+            ...D.foods.filter(f=>f.name.toLowerCase().includes(kw.toLowerCase()))];
+  }
   else if(sheetCat==='最近') list = D.recent.map(n=>D.foods.find(f=>f.name===n)).filter(Boolean);
-  else if(sheetCat==='常用') list = D.foods.filter(f=>f.uses>0).sort((a,b)=>(b.uses||0)-(a.uses||0)).slice(0,14);
+  else if(sheetCat==='常用'){
+    // 套餐与常用食物按使用次数混排
+    list = [...D.combos, ...D.foods.filter(f=>f.uses>0)].sort((a,b)=>(b.uses||0)-(a.uses||0)).slice(0,20);
+  }
   else if(sheetCat==='其他') list = D.foods.filter(f=>!known.includes(f.cat));
   else list = D.foods.filter(f=>f.cat===sheetCat);
-  let html = list.slice(0,60).map(foodRowHtml).join('');
-  if(!kw && sheetCat==='最近' && !list.length){
-    html = '<div class="hint" style="padding:14px 0;">还没有记录，先从分类里挑或直接搜索</div>';
+  let html = list.slice(0,60).map(x=>x.items?comboRowHtml(x):foodRowHtml(x)).join('');
+  if(!kw && !list.length){
+    html = `<div class="hint" style="padding:14px 0;">${sheetCat==='常用'?'还没有常用记录，先从分类里挑或直接搜索':sheetCat==='最近'?'还没有记录':'这个分类暂时是空的'}</div>`;
   }
   document.getElementById('foodList').innerHTML = html;
   document.getElementById('foodNotFound').style.display = (kw && list.length===0) ? 'block' : 'none';
@@ -1020,6 +1121,52 @@ function confirmAddFood(){
     toast('已添加 ' + f.name);
   }
 }
+/* 套餐：一餐的若干食物存成组合，添加时逐项展开（可继续单项修改） */
+let comboMeal = null;
+function openComboSave(meal){
+  const items = getDay(curDate).meals[meal].filter(it=>!it.pending);
+  if(items.length<2){ toast('至少两样食物才好存成套餐'); return; }
+  comboMeal = meal;
+  document.getElementById('comboItems').textContent = items.map(it=>it.name+(it.amt?' '+it.amt:'')).join('  +  ');
+  document.getElementById('comboName').value='';
+  showSheet('comboSheet');
+}
+function saveCombo(){
+  const name = document.getElementById('comboName').value.trim();
+  if(!name){ toast('给套餐起个名字'); return; }
+  if(D.combos.some(c=>c.name===name) || D.foods.some(f=>f.name===name)){ toast('这个名字已存在，换一个'); return; }
+  const items = getDay(curDate).meals[comboMeal].filter(it=>!it.pending).map(it=>({...it}));
+  D.combos.push({name, items, uses:1});
+  D.removedCombos = D.removedCombos.filter(n=>n!==name);
+  save(); closeSheets(); autoSync();
+  toast('已存为套餐「'+name+'」，常用里可找到');
+}
+function addCombo(name){
+  const cb = D.combos.find(c=>c.name===name);
+  if(!cb) return;
+  cb.uses = (cb.uses||0)+1;
+  const arr = getDay(curDate).meals[sheetMeal];
+  const copies = cb.items.map(it=>({...it}));
+  arr.push(...copies);
+  touch(curDate); closeSheets(); renderToday(); autoSync();
+  toast(`已添加套餐 ${name} · ${copies.length}项`, {label:'撤销', fn:()=>{
+    arr.splice(arr.length-copies.length, copies.length);
+    touch(curDate); renderToday(); autoSync();
+  }});
+}
+function delCombo(name){
+  const i = D.combos.findIndex(c=>c.name===name);
+  if(i<0) return;
+  const cb = D.combos[i];
+  D.combos.splice(i,1);
+  D.removedCombos.push(name);
+  save(); renderFoodList(); autoSync();
+  toast('已删除套餐 '+name, {label:'撤销', fn:()=>{
+    D.combos.splice(i,0,cb);
+    D.removedCombos = D.removedCombos.filter(n=>n!==name);
+    save(); renderFoodList(); autoSync();
+  }});
+}
 function addPendingFood(){
   const name = document.getElementById('foodSearch').value.trim();
   if(!name) return;
@@ -1034,7 +1181,9 @@ function addManualFood(){
   const name = document.getElementById('foodSearch').value.trim();
   const c=+document.getElementById('mC').value||0, p=+document.getElementById('mP').value||0, f=+document.getElementById('mF').value||0;
   if(!name) return;
-  D.foods.push({name, cat:'自定义', serv:'1份', servG:0, c, p, f, uses:1});
+  const mG = +document.getElementById('mG').value||0;
+  D.foods.push({name, cat:'自定义', serv: mG?('1份'+mG+'g'):'1份', servG:mG, c, p, f, uses:1, user:true});
+  D.removedFoods = D.removedFoods.filter(n=>n!==name);
   pushRecent(name);
   getDay(curDate).meals[sheetMeal].push({name, amt:'', qty:1, mode:'serv', c, p, f});
   touch(curDate); closeSheets(); renderToday(); autoSync();
@@ -1051,13 +1200,13 @@ async function aiEstimate(){
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+ai.key},
       body: JSON.stringify({model: ai.model, temperature:0,
-        messages:[{role:'system',content:'你是营养师。用户给出一个食物名（中国常见饮食/外卖），估算典型单份的宏量营养素。只返回JSON：{"unit":"份量说明","c":碳水克,"p":蛋白克,"f":脂肪克}，不要其他文字。'},
+        messages:[{role:'system',content:'你是营养师。用户给出一个食物名（中国常见饮食/外卖），估算典型单份的宏量营养素。只返回JSON：{"unit":"份量说明","servG":每份约多少克,"c":碳水克,"p":蛋白克,"f":脂肪克}，不要其他文字。外卖按重油重调味口径估算，宁可高估不低估。'},
                   {role:'user',content:name}]})
     });
     const j = await res.json();
     const txt = j.choices[0].message.content.replace(/```json|```/g,'').trim();
     const r = JSON.parse(txt);
-    D.foods.push({name, cat:'AI估算', serv:r.unit||'1份', servG:0, c:+r.c||0, p:+r.p||0, f:+r.f||0, uses:1});
+    D.foods.push({name, cat:'AI估算', serv:r.unit||'1份', servG:+r.servG||0, c:+r.c||0, p:+r.p||0, f:+r.f||0, uses:1});
     save(); pickFood(name);
   }catch(e){ toast('AI 查询失败：'+e.message); }
   btn.disabled=false; btn.textContent='🤖 AI 实时估算';
@@ -1139,32 +1288,43 @@ function addSupp(){
 function delSupp(i){ D.suppDefs.splice(i,1); save(); renderSuppMg(); renderToday(); }
 
 /* ================= 训练页 ================= */
-let wtype = 'chest';
-function exList(day){ return PLAN[day].ex.concat(D.customEx[day]||[]); }
+let wtype = null, exManage = false;
+function splitDay(k){ return D.split.find(s=>s.key===k); }
+function exList(k){ const sd = splitDay(k); return sd ? sd.ex : []; }
 function renderTrain(){
-  const types = [['chest','胸'],['shoulder','肩'],['back','背'],['leg','腿'],['cardio','有氧']];
+  if(wtype!=='cardio' && !splitDay(wtype)) wtype = D.split.length ? D.split[0].key : 'cardio';
+  const types = D.split.map(s=>[s.key,s.name]).concat([['cardio','有氧']]);
   document.getElementById('wtypeSeg').innerHTML = types.map(([k,n])=>
-    `<button class="${wtype===k?'on':''}" onclick="wtype='${k}';renderTrain()">${n}</button>`).join('');
+    `<button class="${wtype===k?'on':''}" onclick="wtype='${k}';exManage=false;renderTrain()">${n}</button>`).join('');
   const box = document.getElementById('wForm');
   if(wtype==='cardio'){
     box.innerHTML = `<label class="f">类型</label><select id="cardioType">${CARDIO.map(c=>`<option>${c[0]}</option>`).join('')}</select>
       <label class="f">时长（分钟）</label><input id="cardioMin" type="number" placeholder="60" inputmode="numeric">
       <button class="btn" style="margin-top:14px;" onclick="saveCardio()">保存记录</button>
-      <div class="hint" style="margin-top:10px;">保存后自动把今天标为有氧日，并按消耗追加碳水配额。</div>`;
+      <div class="hint" style="margin-top:10px;">纯有氧日按消耗追加碳水配额；力量日加练有氧同样自动追加。</div>`;
+  } else if(exManage){
+    const sd = splitDay(wtype);
+    box.innerHTML = `<div class="exhead"><div class="hint">管理「${sd.name}」动作库 · 排序 / 删除</div>
+      <button class="btn ghost sm" style="padding:6px 12px;font-size:12px;" onclick="exManage=false;renderTrain()">完成</button></div>` +
+      sd.ex.map((ex,i)=>`<div class="mgrow"><div class="nm">${ex}</div>
+        <button onclick="moveEx(${i},-1)" ${i===0?'disabled':''}>↑</button>
+        <button onclick="moveEx(${i},1)" ${i===sd.ex.length-1?'disabled':''}>↓</button>
+        <button class="rmv" onclick="delExercise(${i})">✕</button></div>`).join('') +
+      `<button class="additem" style="margin:10px 0 0; width:100%;" onclick="openExSheet()">＋ 添加动作</button>`;
   } else {
     const last = lastStrength(wtype);
     const exs = exList(wtype);
-    box.innerHTML = `<div class="exhead"><div class="hint">练${PLAN[wtype].name}日 · 填做了的动作${last?' · 灰字为上次':''}</div>
-      ${last?`<button class="btn ghost sm" style="padding:6px 12px;font-size:12px;" onclick="fillLast()">沿用上次</button>`:''}</div>` +
+    box.innerHTML = `<div class="exhead"><div class="hint">练${splitDay(wtype).name}日 · 填做了的动作${last?' · 灰字为上次':''}</div>
+      ${last?`<button class="btn ghost sm" style="padding:6px 12px;font-size:12px;margin-right:6px;" onclick="fillLast()">沿用上次</button>`:''}
+      <button class="btn ghost sm" style="padding:6px 12px;font-size:12px;" onclick="exManage=true;renderTrain()">管理动作</button></div>` +
       exs.map((ex,i)=>{
         const lv = last && last.entries.find(e=>e.ex===ex);
         const ph = lv ? [lv.w+'kg',lv.r+'次',lv.s+'组'] : ['kg','次','组'];
-        const custom = (D.customEx[wtype]||[]).includes(ex);
         return `<div class="exrow"><div class="exnm">${ex}</div>
         <input type="number" id="w${i}" placeholder="${ph[0]}" inputmode="decimal">
         <input type="number" id="r${i}" placeholder="${ph[1]}" inputmode="numeric">
         <input type="number" id="s${i}" placeholder="${ph[2]}" inputmode="numeric">
-        ${custom?`<button class="rm" onclick="delExercise('${wtype}','${ex}')">✕</button>`:'<span></span>'}</div>`;
+        <span></span></div>`;
       }).join('') +
       `<button class="additem" style="margin:2px 0 10px; width:100%;" onclick="openExSheet()">＋ 添加动作</button>
       <label class="f">总时长（分钟）</label><input id="strMin" type="number" placeholder="70" inputmode="numeric">
@@ -1187,7 +1347,7 @@ function fillLast(){
   toast('已带入上次数据，改动有变化的格子即可');
 }
 function openExSheet(){
-  document.getElementById('exDayName').textContent = '练'+PLAN[wtype].name+'日';
+  document.getElementById('exDayName').textContent = '练'+splitDay(wtype).name+'日';
   document.getElementById('newExName').value='';
   showSheet('exSheet');
 }
@@ -1195,12 +1355,24 @@ function addExercise(){
   const name = document.getElementById('newExName').value.trim();
   if(!name){ toast('填一下动作名'); return; }
   if(exList(wtype).includes(name)){ toast('已存在'); return; }
-  D.customEx[wtype].push(name);
+  splitDay(wtype).ex.push(name);
+  D.splitUpd = Date.now();
   save(); closeSheets(); renderTrain();
-  toast('已加入'+PLAN[wtype].name+'日动作库');
+  toast('已加入'+splitDay(wtype).name+'日动作库');
 }
-function delExercise(day, ex){
-  D.customEx[day] = D.customEx[day].filter(e=>e!==ex);
+function delExercise(i){
+  const ex = splitDay(wtype).ex;
+  const nm = ex.splice(i,1)[0];
+  D.splitUpd = Date.now();
+  save(); renderTrain();
+  toast('已移除 '+nm, {label:'撤销', fn:()=>{ ex.splice(i,0,nm); D.splitUpd=Date.now(); save(); renderTrain(); }});
+}
+function moveEx(i, dir){
+  const ex = splitDay(wtype).ex;
+  const j = i+dir;
+  if(j<0 || j>=ex.length) return;
+  [ex[i],ex[j]] = [ex[j],ex[i]];
+  D.splitUpd = Date.now();
   save(); renderTrain();
 }
 function lastStrength(t){
@@ -1219,10 +1391,10 @@ function saveStrength(){
   const min = +document.getElementById('strMin').value || 70;
   const kcal = Math.round(STRENGTH_MET*3.5*D.profile.weight/200*min);
   const day = getDay(curDate);
-  day.workouts.push({kind:'strength', day:wtype, name:'练'+PLAN[wtype].name, entries, min, kcal});
+  day.workouts.push({kind:'strength', day:wtype, name:'练'+splitDay(wtype).name, entries, min, kcal});
   day.type = 'train';
   touch(curDate); renderTrain(); renderToday(); autoSync();
-  toast('已记录 练'+PLAN[wtype].name+' · 估算消耗'+kcal+'kcal');
+  toast('已记录 练'+splitDay(wtype).name+' · 估算消耗'+kcal+'kcal');
 }
 function saveCardio(){
   const t = document.getElementById('cardioType').value;
@@ -1245,8 +1417,8 @@ function renderLogs(){
   for(const ds of dates){
     const ws = D.days[ds].workouts;
     if(!ws.length) continue;
-    const html = ws.map((w,wi)=>`<div class="wlog"><div class="t">${ds.slice(5)} · ${w.name}<span class="kx">${w.min}min · ${w.kcal}kcal</span>
-      <button style="background:none;border:0;color:#CBD5E1;margin-left:10px;font-size:13px;padding:2px 4px;" onclick="delWorkout('${ds}',${wi})">✕</button></div>
+    const html = ws.map((w,wi)=>`<div class="wlog" onclick="editWorkout('${ds}',${wi})" style="cursor:pointer;"><div class="t">${ds.slice(5)} · ${w.name}<span class="kx">${w.min}min · ${w.kcal}kcal</span>
+      <button style="background:none;border:0;color:#CBD5E1;margin-left:10px;font-size:13px;padding:2px 4px;" onclick="event.stopPropagation();delWorkout('${ds}',${wi})">✕</button></div>
       ${w.entries?`<div class="d">${w.entries.map(e=>`${e.ex}　${e.w}kg × ${e.r} × ${e.s}组`).join('\n')}</div>`:''}</div>`).join('');
     if(ds >= mondayStr){ weekHtml += html; weekCount += ws.length; }
     else if(histHtml.length < 9000) histHtml += html;
@@ -1256,6 +1428,62 @@ function renderLogs(){
   document.getElementById('historyLogs').innerHTML = histHtml || '<div class="hint">暂无</div>';
 }
 function delWorkout(ds,i){ D.days[ds].workouts.splice(i,1); touch(ds); renderTrain(); renderToday(); autoSync(); }
+/* 训练记录编辑：点击历史记录进入，改数值/删单个动作/改时长，消耗按时长重算 */
+let wEdit = null;
+function editWorkout(ds, wi){
+  const w = D.days[ds].workouts[wi];
+  if(!w) return;
+  wEdit = {ds, wi};
+  document.getElementById('wEditTitle').textContent = ds.slice(5)+' · '+w.name;
+  const body = document.getElementById('wEditBody');
+  if(w.kind==='cardio'){
+    body.innerHTML = `<label class="f">类型</label><select id="ewType">${CARDIO.map(c=>`<option ${c[0]===w.name?'selected':''}>${c[0]}</option>`).join('')}</select>
+      <label class="f">时长（分钟）</label><input id="ewMin" type="number" value="${w.min}" inputmode="numeric">
+      <button class="btn" style="margin-top:14px;" onclick="saveWorkoutEdit()">保存修改</button>
+      <button class="btn gray" style="margin-top:8px;" onclick="delWorkout(wEdit.ds,wEdit.wi);closeSheets()">删除整条记录</button>`;
+  } else {
+    body.innerHTML = w.entries.map((e,i)=>`<div class="exrow"><div class="exnm">${e.ex}</div>
+      <input type="number" id="ew${i}" value="${e.w}" inputmode="decimal">
+      <input type="number" id="er${i}" value="${e.r}" inputmode="numeric">
+      <input type="number" id="es${i}" value="${e.s}" inputmode="numeric">
+      <button class="rm" onclick="delWEntry(${i})">✕</button></div>`).join('') +
+      `<label class="f">总时长（分钟）</label><input id="ewMin" type="number" value="${w.min}" inputmode="numeric">
+      <button class="btn" style="margin-top:14px;" onclick="saveWorkoutEdit()">保存修改</button>
+      <button class="btn gray" style="margin-top:8px;" onclick="delWorkout(wEdit.ds,wEdit.wi);closeSheets()">删除整条记录</button>`;
+  }
+  showSheet('wEditSheet');
+}
+function readWEntries(){
+  const w = D.days[wEdit.ds].workouts[wEdit.wi];
+  w.entries.forEach((e,i)=>{
+    e.w = +document.getElementById('ew'+i).value||0;
+    e.r = +document.getElementById('er'+i).value||0;
+    e.s = +document.getElementById('es'+i).value||0;
+  });
+  w.min = +document.getElementById('ewMin').value || w.min;
+}
+function delWEntry(i){
+  const w = D.days[wEdit.ds].workouts[wEdit.wi];
+  if(w.entries.length===1){ toast('只剩一个动作了，直接删除整条记录吧'); return; }
+  readWEntries();
+  w.entries.splice(i,1);
+  touch(wEdit.ds);
+  editWorkout(wEdit.ds, wEdit.wi);
+}
+function saveWorkoutEdit(){
+  const w = D.days[wEdit.ds].workouts[wEdit.wi];
+  if(w.kind==='cardio'){
+    w.name = document.getElementById('ewType').value;
+    w.min = +document.getElementById('ewMin').value || w.min;
+    w.kcal = Math.round(CARDIO.find(c=>c[0]===w.name)[1]*3.5*D.profile.weight/200*w.min);
+  } else {
+    readWEntries();
+    w.entries = w.entries.filter(e=>e.w||e.r||e.s);
+    w.kcal = Math.round(STRENGTH_MET*3.5*D.profile.weight/200*w.min);
+  }
+  touch(wEdit.ds); closeSheets(); renderTrain(); renderToday(); autoSync();
+  toast('已更新');
+}
 
 /* ================= 趋势页 ================= */
 function addWeight(){
@@ -1441,6 +1669,49 @@ function renderSet(){
   const s = quotaScheme();
   document.getElementById('profScheme').innerHTML =
     `当前方案（${GOALS[p.goal]}）：蛋白 <b>${s.pF}</b> · 脂肪 <b>${s.fF}</b> · 碳水 休息日<b>${s.cRest}</b> / 训练日<b>${s.cTrain}</b> g/kg，随体重与BMI自动调整`;
+  // 训练方案
+  document.getElementById('splitPreset').innerHTML = Object.entries(SPLIT_PRESETS).map(([k,v])=>
+    `<button onclick="applyPreset('${k}')">${v.name}</button>`).join('');
+  document.getElementById('splitDays').innerHTML = D.split.map((sd,i)=>
+    `<div class="mgrow"><input value="${sd.name}" onchange="renameSplitDay(${i},this.value)" style="flex:1; height:38px;">
+     <span class="hint" style="flex:none;">${sd.ex.length}个动作</span>
+     <button class="rmv" onclick="delSplitDay(${i})">✕</button></div>`).join('');
+}
+function applyPreset(k){
+  const pv = SPLIT_PRESETS[k];
+  toast('切换为'+pv.name+'？训练日和动作库将重置', {label:'确认', fn:()=>{
+    D.split = pv.days.map(x=>({key:x.key, name:x.name, ex:[...x.ex]}));
+    D.splitUpd = Date.now();
+    wtype = D.split[0].key; exManage = false;
+    save(); renderSet(); renderTrain();
+    toast('已切换为 '+pv.name);
+  }});
+}
+function addSplitDay(){
+  const name = document.getElementById('newDayName').value.trim();
+  if(!name){ toast('填一下训练日名称'); return; }
+  if(D.split.some(s=>s.name===name)){ toast('已有同名训练日'); return; }
+  D.split.push({key:'d'+Date.now(), name, ex:[]});
+  D.splitUpd = Date.now();
+  save(); renderSet(); renderTrain();
+  toast('已添加「'+name+'」，去训练页给它加动作');
+}
+function delSplitDay(i){
+  if(D.split.length<=1){ toast('至少保留一个训练日'); return; }
+  const sd = D.split[i];
+  toast('删除训练日「'+sd.name+'」？历史记录不受影响', {label:'确认', fn:()=>{
+    D.split.splice(i,1);
+    D.splitUpd = Date.now();
+    if(wtype===sd.key) wtype = D.split[0].key;
+    save(); renderSet(); renderTrain();
+  }});
+}
+function renameSplitDay(i, v){
+  v = v.trim();
+  if(!v){ renderSet(); return; }
+  D.split[i].name = v;
+  D.splitUpd = Date.now();
+  save(); renderTrain();
 }
 function saveProfile(){
   const p = D.profile;
@@ -1575,13 +1846,25 @@ function mergeData(remote){
     const ids = new Set(D.suppDefs.map(s=>s.id));
     for(const s of remote.suppDefs) if(!ids.has(s.id)) D.suppDefs.push(s);
   }
+  // 训练方案：整体按 splitUpd 取新（并集会让删除/排序失效）
+  if(remote.split && (remote.splitUpd||0) > (D.splitUpd||0)){
+    D.split = remote.split; D.splitUpd = remote.splitUpd;
+  }
+  // 旧版本客户端的 customEx 合入对应训练日
   if(remote.customEx){
-    for(const k of Object.keys(PLAN)){
-      const set = new Set(D.customEx[k]||[]);
-      for(const e of (remote.customEx[k]||[])) set.add(e);
-      D.customEx[k] = [...set];
+    for(const k of Object.keys(remote.customEx)){
+      const sd = D.split.find(s=>s.key===k);
+      if(sd) for(const e of (remote.customEx[k]||[])) if(!sd.ex.includes(e)) sd.ex.push(e);
     }
   }
+  // 套餐与删除墓碑：墓碑并集，先并集内容再按墓碑过滤（防止已删条目从远端复活）
+  D.removedFoods = [...new Set([...(D.removedFoods||[]), ...(remote.removedFoods||[])])];
+  D.removedCombos = [...new Set([...(D.removedCombos||[]), ...(remote.removedCombos||[])])];
+  const cmap = {};
+  for(const c of (remote.combos||[])) cmap[c.name]=c;
+  for(const c of (D.combos||[])) cmap[c.name]=c;
+  D.combos = Object.values(cmap).filter(c=>!D.removedCombos.includes(c.name));
+  D.foods = D.foods.filter(f=>!D.removedFoods.includes(f.name));
 }
 
 /* ================= 导航 ================= */
