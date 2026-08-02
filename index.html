@@ -1698,7 +1698,8 @@ async function aiImgPicked(inp){
   inp.value = '';
   if(!file) return;
   try{
-    const data = await compressImage(file, 1024, 0.8);
+    // 2048上限：1024会把长截图（菜单/配料表）压到文字不可读，实测3KB全糊
+    const data = await compressImage(file, 2048, 0.85);
     const thumb = await compressImage(file, 160, 0.6);
     if(mealImgTarget){
       const meal = mealImgTarget; mealImgTarget = null;
