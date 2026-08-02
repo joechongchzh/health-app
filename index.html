@@ -720,6 +720,13 @@ const SEED_FOODS = [
 ['山药粉牛奶早餐(套餐)','套餐','山药粉+脱脂奶+2蛋+半勺蛋白粉',0,47,36,18],
 ['乡村基爆炒牛肉套餐','套餐','饭180g+牛肉+蒸蛋+花菜涮水',0,51,38,22],
 ];
+/* Joe认可的可信基础食物：v5恢复且merge时豁免墓碑（米饭类=成分表低方差；蛋白粉=Joe自用数据） */
+const RESTORED_FOODS = [
+  {name:'白米饭(熟)', cat:'主食', serv:'100g', servG:100, c:26, p:2.6, f:0.3, uses:0, user:true},
+  {name:'糙米饭(熟)', cat:'主食', serv:'100g', servG:100, c:25, p:2.7, f:0.8, uses:0, user:true},
+  {name:'杂粮饭(熟)', cat:'主食', serv:'100g', servG:100, c:25, p:3, f:0.6, uses:0, user:true},
+  {name:'乳清蛋白粉', cat:'乳豆', serv:'1勺30g', servG:30, c:3, p:25, f:2, uses:0, user:true},
+];
 const DEFAULT_SUPPS = [
   {id:'fish', name:'鱼油', times:['早','晚'], trainOnly:false},
   {id:'vit', name:'维生素', times:['午'], trainOnly:false},
@@ -798,6 +805,11 @@ function load(){
     });
     d.recent = [];
     d.ver = 4;
+  }
+  if(d.ver === 4){
+    for(const f of RESTORED_FOODS) if(!d.foods.some(x=>x.name===f.name)) d.foods.push({...f});
+    d.removedFoods = (d.removedFoods||[]).filter(n=>!RESTORED_FOODS.some(f=>f.name===n));
+    d.ver = 5;
   }
   d.split = d.split || SPLIT_PRESETS.four.days.map(x=>({key:x.key, name:x.name, ex:[...x.ex]}));
   d.combos = d.combos || [];
@@ -2402,6 +2414,9 @@ function mergeData(remote){
   // 套餐与删除墓碑：墓碑并集，先并集内容再按墓碑过滤（防止已删条目从远端复活）
   D.removedFoods = [...new Set([...(D.removedFoods||[]), ...(remote.removedFoods||[])])];
   D.removedCombos = [...new Set([...(D.removedCombos||[]), ...(remote.removedCombos||[])])];
+  // 恢复白名单豁免：墓碑并集只增不减，白名单食物在此强制摘除墓碑并补回，否则旧端墓碑会反复删掉它们
+  D.removedFoods = D.removedFoods.filter(n=>!RESTORED_FOODS.some(f=>f.name===n));
+  for(const f of RESTORED_FOODS) if(!D.foods.some(x=>x.name===f.name)) D.foods.push({...f});
   const cmap = {};
   for(const c of (remote.combos||[])) cmap[c.name]=c;
   for(const c of (D.combos||[])) cmap[c.name]=c;
