@@ -218,6 +218,11 @@ canvas.chart{width:100%; height:auto; display:block;}
 .legend .d{width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:4px; vertical-align:1px;}
 .rule{display:flex; gap:9px; align-items:flex-start; padding:7px 0; font-size:13px; color:var(--t2); line-height:1.55;}
 .rule .d{width:6px; height:6px; border-radius:50%; background:var(--p); margin-top:7px; flex:none;}
+.bwbox{border-radius:12px; padding:11px 13px; font-size:13.5px; line-height:1.6; margin-bottom:8px; font-weight:600;}
+.bwbox.ok{background:#ECFDF5; color:#059669;}
+.bwbox.warn{background:#FFF6E6; color:#B45309;}
+.bwbox.info{background:#EEF2FF; color:#4F63D8;}
+.bwbox.mute{background:#F4F7F5; color:#64748B; font-weight:500;}
 .suppmg{display:flex; align-items:center; padding:11px 0; border-bottom:1px solid var(--line); font-size:14px;}
 .suppmg .tms{font-size:11.5px; color:var(--t3); margin-left:8px; flex:1;}
 .chk{display:inline-flex; align-items:center; gap:5px; margin-right:12px; font-size:13.5px; color:var(--t2);}
@@ -327,6 +332,7 @@ canvas.chart{width:100%; height:auto; display:block;}
     <div class="card">
       <div class="ct"><span class="cico gray"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 4.5V3h6v1.5M8.5 10.5h7M8.5 14.5h4.5"/></svg></span>
         <span class="t">两周复盘</span></div>
+      <div id="biweekBox"></div>
       <div class="rule"><span class="d"></span>两周降幅 ≈1.8kg → 配额维持不变</div>
       <div class="rule"><span class="d" style="background:var(--amber)"></span>降幅 &lt;1.5kg → 碳水减 27g/天（下限 2.0g/kg）</div>
       <div class="rule"><span class="d" style="background:var(--prot)"></span>降幅 &gt;2.3kg → 碳水加 27g/天</div>
@@ -1264,7 +1270,28 @@ function addWeight(){
   document.getElementById('weightInput').value='';
   toast('已记录 '+v+'kg，配额已联动更新');
 }
+// 两周复盘自动建议：对比约14天前后的体重（容差8-20天，归一化到14天），按手动调整规则给建议；只建议，不改配额
+function biweekReview(){
+  const ws = D.weights;
+  if(!ws.length) return {cls:'mute', msg:'记录体重后，这里会自动跟踪两周降幅'};
+  const last = ws[ws.length-1];
+  const diff = d => Math.round((new Date(last.d)-new Date(d))/864e5);
+  const span = diff(ws[0].d);
+  if(span<11) return {cls:'mute', msg:`体重数据已积累 ${span+1} 天，满两周后自动给出配额建议`};
+  let base=null, best=1e9;
+  for(const w of ws){ const dd=diff(w.d); if(dd>=8 && dd<=20 && Math.abs(dd-14)<best){ best=Math.abs(dd-14); base=w; } }
+  if(!base) return {cls:'mute', msg:'两周前后缺少体重记录，无法计算降幅'};
+  const drop = +((base.kg-last.kg)/diff(base.d)*14).toFixed(1);
+  const head = `近两周${drop>=0?'降 '+drop:'升 '+(-drop)}kg（${base.d.slice(5)} ${base.kg} → ${last.d.slice(5)} ${last.kg}kg）`;
+  if(D.profile.goal!=='cut') return {cls:'info', msg:head};
+  if(drop>2.3) return {cls:'info', msg:head+'：降幅偏快，建议碳水 +27g/天，防肌肉流失'};
+  if(drop>=1.5) return {cls:'ok', msg:head+'：节奏合适，配额维持不变'};
+  if(quotaScheme().cRest<=2.0) return {cls:'warn', msg:head+'：降幅不足，但碳水已在下限 2.0g/kg，建议增加有氧或复核饮食记录'};
+  return {cls:'warn', msg:head+'：降幅 <1.5kg，建议碳水 −27g/天（下限 2.0g/kg）'};
+}
 function renderTrend(){
+  const bw = biweekReview();
+  document.getElementById('biweekBox').innerHTML = `<div class="bwbox ${bw.cls}">${bw.msg}</div>`;
   const ws = D.weights.slice(-30);
   document.getElementById('weightSub').textContent = ws.length>=2 ? `${ws[0].kg} → ${ws[ws.length-1].kg} kg` : '记录你的第一个体重';
   drawLine('weightChart', ws.map(w=>({x:w.d.slice(5), y:w.kg})));
