@@ -762,7 +762,7 @@ function load(){
     }
     d.ver = 2;
   }
-  if(!d.foods || !d.foods.length) d.foods = seedFoods();
+  if(d.ver === 2 && (!d.foods || !d.foods.length)) d.foods = seedFoods();
   if(d.ver === 2){
     // 训练方案：PLAN四分化 + customEx 合入可编辑的 split
     d.split = SPLIT_PRESETS.four.days.map(x=>({key:x.key, name:x.name, ex:[...x.ex]}));
@@ -787,6 +787,17 @@ function load(){
       return false;
     });
     d.ver = 3;
+  }
+  if(d.ver === 3){
+    // 食物库清零（Joe 2026-08-03 决策：默认库不可信，只保留自建，靠AI交互逐步重建）
+    d.removedFoods = d.removedFoods || [];
+    d.foods = (d.foods||[]).filter(f=>{
+      if(f.user) return true;
+      d.removedFoods.push(f.name);
+      return false;
+    });
+    d.recent = [];
+    d.ver = 4;
   }
   d.split = d.split || SPLIT_PRESETS.four.days.map(x=>({key:x.key, name:x.name, ex:[...x.ex]}));
   d.combos = d.combos || [];
@@ -1282,6 +1293,7 @@ async function aiEstimate(){
     const txt = j.choices[0].message.content.replace(/```json|```/g,'').trim();
     const r = JSON.parse(txt);
     D.foods.push({name, cat:'AI估算', serv:r.unit||'1份', servG:+r.servG||0, c:+r.c||0, p:+r.p||0, f:+r.f||0, uses:1});
+    D.removedFoods = D.removedFoods.filter(n=>n!==name);
     save(); pickFood(name);
   }catch(e){ toast('AI 查询失败：'+e.message); }
   btn.disabled=false; btn.textContent='🤖 AI 实时估算';
@@ -1313,12 +1325,14 @@ function aiSystemPrompt(){
 （c/p/f是这次实际吃下的总量；is_new=true表示食物库没有，此时必须带lib给出单份基准以便入库；库里有的食物用库内名称且不带lib）
 {"type":"set_meal","meal":"breakfast|lunch|dinner|snack","items":[与log_food相同的items格式]}（用该列表整体替换该餐现有记录。删除某样=给出删除后剩余的完整列表；清空该餐=空数组；改份量=给出修改后的完整列表）
 {"type":"add_food","name":"","serv":"每份说明","servG":每份克重,"c":每份碳水,"p":每份蛋白,"f":每份脂肪}（用户主动提供营养数据的新食物）
+{"type":"update_food","name":"库内食物名","serv":"每份说明(可不变)","servG":每份克重,"c":每份碳水,"p":每份蛋白,"f":每份脂肪}（复核修正库内某食物的单份营养数据）
 {"type":"save_combo","name":"套餐名","meal":"breakfast|lunch|dinner|snack"}（把今天该餐已记录的食物存为套餐）
 {"type":"add_exercise","dayName":"训练日名","ex":"动作名"}
 {"type":"remove_exercise","dayName":"训练日名","ex":"动作名"}
 {"type":"log_weight","kg":数值}
 【规则】食物、动作、训练日优先精确匹配下方库里的现有名称，匹配不到才造新名并标is_new。外卖/餐馆食物按重油重调味口径估算热量，宁可高估不低估。数值明显异常（重量>300kg、单餐>3000kcal）先追问确认。用户没说哪一餐时按当前时间推断并在reply里说明。饮食建议要对照该餐剩余配额给结论。
 【重要边界】log_food只会往一餐里追加，绝不能用它做修改或删除；要修改/删除某餐的已有记录，必须用set_meal给出修改后的完整列表。已记录的训练无法通过对话修改或删除，用户提出时如实说明并引导他去训练页点击那条记录编辑。没有对应动作类型的操作不要假装完成。
+【复核】用户质疑某食物热量估得不合理时，认真重估（重点检查食用油、酱料、糖、坚果等易漏项），用update_food修正库内单份数据；若今天已用旧数据记过该食物，主动提出并用set_meal把对应餐次一并修正。
 【今天 ${curDate} 周${'日一二三四五六'[new Date(curDate).getDay()]}】
 日型:${({train:'力量日',rest:'休息日',cardio:'有氧日'})[day.type]} · 体重:${D.profile.weight}kg · 目标:${GOALS[D.profile.goal]}
 今日配额: 碳${q.c} 蛋${q.p} 脂${q.f}g ≈${q.kcal}kcal · 已摄入: 碳${Math.round(intake.c)} 蛋${Math.round(intake.p)} 脂${Math.round(intake.f)} = ${intake.kcal}kcal
@@ -1394,6 +1408,12 @@ function aiCardHtml(c, mi, ci){
   } else if(a.type==='add_food'){
     ttl = '新食物入库';
     rows = `<div class="rowi"><span>${esc(a.name)} <span class="fbadge user">自建</span></span><span class="m">每份${esc(a.serv||'1份')}${a.servG?'('+a.servG+'g)':''} · ${Math.round(a.c*4+a.p*4+a.f*9)}kcal · 碳${a.c} 蛋${a.p} 脂${a.f}</span></div>`;
+  } else if(a.type==='update_food'){
+    ttl = '复核修正食物数据';
+    const f = D.foods.find(x=>x.name===a.name);
+    const oldTxt = f ? `${Math.round(f.c*4+f.p*4+f.f*9)}kcal · 碳${f.c} 蛋${f.p} 脂${f.f}` : '?';
+    rows = `<div class="rowi"><span>${esc(a.name)}</span><span class="m">原 ${oldTxt}</span></div>
+      <div class="rowi"><span style="color:var(--p-dd);font-weight:600;">修正为</span><span class="m"><b>${Math.round(a.c*4+a.p*4+a.f*9)}kcal</b> · 碳${a.c} 蛋${a.p} 脂${a.f}${a.servG?' · '+a.servG+'g/份':''}</span></div>`;
   } else if(a.type==='save_combo'){
     ttl = '存为套餐';
     const items = getDay(curDate).meals[a.meal].filter(it=>!it.pending);
@@ -1417,6 +1437,7 @@ function aiValidate(a){
     if(a.type==='log_food') return !!(MEAL_NAMES[a.meal] && a.items && a.items.length && a.items.every(it=>it.name && it.c>=0 && it.c<1000 && it.p>=0 && it.p<500 && it.f>=0 && it.f<500));
     if(a.type==='set_meal') return !!(MEAL_NAMES[a.meal] && Array.isArray(a.items) && a.items.every(it=>it.name && it.c>=0 && it.c<1000 && it.p>=0 && it.p<500 && it.f>=0 && it.f<500));
     if(a.type==='add_food') return !!(a.name && a.c>=0 && a.p>=0 && a.f>=0);
+    if(a.type==='update_food') return !!(D.foods.some(f=>f.name===a.name) && a.c>=0 && a.c<1000 && a.p>=0 && a.p<500 && a.f>=0 && a.f<500);
     if(a.type==='save_combo') return !!(a.name && MEAL_NAMES[a.meal]);
     if(a.type==='add_exercise' || a.type==='remove_exercise') return !!(a.ex && D.split.some(s=>s.name===a.dayName));
     if(a.type==='log_weight') return a.kg>40 && a.kg<200;
@@ -1469,6 +1490,15 @@ function aiExec(a){
     D.foods.push({name:''+a.name, cat:'自定义', serv:a.serv||'1份', servG:+a.servG||0, c:+a.c, p:+a.p, f:+a.f, uses:0, user:true});
     D.removedFoods = D.removedFoods.filter(n=>n!==a.name);
     return `已入库 ${a.name}（自建）`;
+  }
+  if(a.type==='update_food'){
+    const f = D.foods.find(x=>x.name===a.name);
+    const oldKc = Math.round(f.c*4+f.p*4+f.f*9);
+    if(a.serv) f.serv = a.serv;
+    if(+a.servG) f.servG = +a.servG;
+    f.c = +a.c; f.p = +a.p; f.f = +a.f;
+    const newKc = Math.round(f.c*4+f.p*4+f.f*9);
+    return `已复核修正 ${a.name}：${oldKc} → ${newKc} kcal/份`;
   }
   if(a.type==='save_combo'){
     const items = day.meals[a.meal].filter(it=>!it.pending).map(it=>({...it}));
@@ -1555,11 +1585,21 @@ async function aiRequest(img){
   try{
     const cfg = img ? aiCfg('vision') : aiCfg('chat');
     const msgs = [{role:'system', content: aiSystemPrompt()}];
-    for(const m of D.aiChat.slice(-14)){
-      if(m.role==='user') msgs.push({role:'user', content:m.text});
-      else if(m.role==='assistant') msgs.push({role:'assistant', content: m.raw || JSON.stringify({reply:m.text, actions:[]})});
-      else if(m.role==='exec') msgs.push({role:'user', content:'[系统] '+m.text});
+    // 短期记忆：从最新往回收，最多30条且总量≤12000字符（≈8k token），防长消息撑爆上下文
+    const hist = [];
+    let budget = 12000;
+    for(let i=D.aiChat.length-1; i>=0 && hist.length<30; i--){
+      const m = D.aiChat[i];
+      const content = m.role==='assistant' ? (m.raw || JSON.stringify({reply:m.text, actions:[]})) : (m.role==='exec' ? '[系统] '+m.text : m.text);
+      if(content.length > budget) break;
+      budget -= content.length;
+      hist.unshift({role: m.role==='assistant'?'assistant':'user', content});
     }
+    if(!hist.length && D.aiChat.length){
+      const m = D.aiChat[D.aiChat.length-1];
+      hist.push({role:'user', content:(m.text||'').slice(0,12000)});
+    }
+    msgs.push(...hist);
     if(img){
       const last = msgs[msgs.length-1];
       last.content = [{type:'text', text:last.content}, {type:'image_url', image_url:{url:img.data}}];
