@@ -813,10 +813,13 @@ function load(){
   }
   d.split = d.split || SPLIT_PRESETS.four.days.map(x=>({key:x.key, name:x.name, ex:[...x.ex]}));
   d.combos = d.combos || [];
-  d.removedFoods = d.removedFoods || [];
-  d.removedCombos = d.removedCombos || [];
+  d.removedFoods = tombNorm(d.removedFoods);
+  d.removedCombos = tombNorm(d.removedCombos);
   return d;
 }
+/* 墓碑带时间戳：{n:名称, ts:删除时间}。旧格式纯字符串视为 ts:0，条目 ts 晚于墓碑则存活（后发生的动作生效） */
+function tombNorm(arr){ return (arr||[]).map(t=>typeof t==='string'?{n:t,ts:0}:t); }
+function tombMerge(a,b){ const m={}; for(const t of [...tombNorm(a),...tombNorm(b)]) if(!m[t.n]||t.ts>m[t.n].ts) m[t.n]=t; return Object.values(m); }
 function save(){ localStorage.setItem(LS_KEY, JSON.stringify(D)); }
 function todayStr(){ const t=new Date(); return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); }
 function dateOffset(ds, n){ const t=new Date(ds); t.setDate(t.getDate()+n); return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); }
@@ -1234,8 +1237,8 @@ function saveCombo(){
   if(!name){ toast('给套餐起个名字'); return; }
   if(D.combos.some(c=>c.name===name) || D.foods.some(f=>f.name===name)){ toast('这个名字已存在，换一个'); return; }
   const items = getDay(curDate).meals[comboMeal].filter(it=>!it.pending).map(it=>({...it}));
-  D.combos.push({name, items, uses:1});
-  D.removedCombos = D.removedCombos.filter(n=>n!==name);
+  D.combos.push({name, items, uses:1, ts:Date.now()});
+  D.removedCombos = D.removedCombos.filter(t=>t.n!==name);
   save(); closeSheets(); autoSync();
   toast('已存为套餐「'+name+'」，常用里可找到');
 }
@@ -1257,11 +1260,12 @@ function delCombo(name){
   if(i<0) return;
   const cb = D.combos[i];
   D.combos.splice(i,1);
-  D.removedCombos.push(name);
+  D.removedCombos.push({n:name, ts:Date.now()});
   save(); renderFoodList(); autoSync();
   toast('已删除套餐 '+name, {label:'撤销', fn:()=>{
+    cb.ts = Date.now();
     D.combos.splice(i,0,cb);
-    D.removedCombos = D.removedCombos.filter(n=>n!==name);
+    D.removedCombos = D.removedCombos.filter(t=>t.n!==name);
     save(); renderFoodList(); autoSync();
   }});
 }
@@ -1280,8 +1284,8 @@ function addManualFood(){
   const c=+document.getElementById('mC').value||0, p=+document.getElementById('mP').value||0, f=+document.getElementById('mF').value||0;
   if(!name) return;
   const mG = +document.getElementById('mG').value||0;
-  D.foods.push({name, cat:'自定义', serv: mG?('1份'+mG+'g'):'1份', servG:mG, c, p, f, uses:1, user:true});
-  D.removedFoods = D.removedFoods.filter(n=>n!==name);
+  D.foods.push({name, cat:'自定义', serv: mG?('1份'+mG+'g'):'1份', servG:mG, c, p, f, uses:1, user:true, ts:Date.now()});
+  D.removedFoods = D.removedFoods.filter(t=>t.n!==name);
   pushRecent(name);
   getDay(curDate).meals[sheetMeal].push({name, amt:'', qty:1, mode:'serv', c, p, f});
   touch(curDate); closeSheets(); renderToday(); autoSync();
@@ -1304,8 +1308,8 @@ async function aiEstimate(){
     const j = await res.json();
     const txt = j.choices[0].message.content.replace(/```json|```/g,'').trim();
     const r = JSON.parse(txt);
-    D.foods.push({name, cat:'AI估算', serv:r.unit||'1份', servG:+r.servG||0, c:+r.c||0, p:+r.p||0, f:+r.f||0, uses:1});
-    D.removedFoods = D.removedFoods.filter(n=>n!==name);
+    D.foods.push({name, cat:'AI估算', serv:r.unit||'1份', servG:+r.servG||0, c:+r.c||0, p:+r.p||0, f:+r.f||0, uses:1, ts:Date.now()});
+    D.removedFoods = D.removedFoods.filter(t=>t.n!==name);
     save(); pickFood(name);
   }catch(e){ toast('AI 查询失败：'+e.message); }
   btn.disabled=false; btn.textContent='🤖 AI 实时估算';
@@ -1319,7 +1323,8 @@ function aiCfg(kind){ const s=D.settings; return kind==='vision' ? (s.aiVision||
 function aiReady(kind){ const c=aiCfg(kind); return !!(c.base && c.key && c.model); }
 
 function aiSystemPrompt(){
-  const day = getDay(curDate);
+  const ds = todayStr();  // AI助手始终操作真实今天，与页面上正在回看的日期无关
+  const day = getDay(ds);
   const q = quotas(day), intake = dayIntake(day);
   const plan = mealPlan(day);
   const mealsTxt = plan.map(m=>{
@@ -1345,7 +1350,7 @@ function aiSystemPrompt(){
 【规则】食物、动作、训练日优先精确匹配下方库里的现有名称，匹配不到才造新名并标is_new。外卖/餐馆食物按重油重调味口径估算热量，宁可高估不低估。数值明显异常（重量>300kg、单餐>3000kcal）先追问确认。用户没说哪一餐时按当前时间推断并在reply里说明。饮食建议要对照该餐剩余配额给结论。
 【重要边界】log_food只会往一餐里追加，绝不能用它做修改或删除；要修改/删除某餐的已有记录，必须用set_meal给出修改后的完整列表。已记录的训练无法通过对话修改或删除，用户提出时如实说明并引导他去训练页点击那条记录编辑。没有对应动作类型的操作不要假装完成。
 【复核】用户质疑某食物热量估得不合理时，认真重估（重点检查食用油、酱料、糖、坚果等易漏项），用update_food修正库内单份数据；若今天已用旧数据记过该食物，主动提出并用set_meal把对应餐次一并修正。
-【今天 ${curDate} 周${'日一二三四五六'[new Date(curDate).getDay()]}】
+【今天 ${ds} 周${'日一二三四五六'[new Date(ds).getDay()]}】
 日型:${({train:'力量日',rest:'休息日',cardio:'有氧日'})[day.type]} · 体重:${D.profile.weight}kg · 目标:${GOALS[D.profile.goal]}
 今日配额: 碳${q.c} 蛋${q.p} 脂${q.f}g ≈${q.kcal}kcal · 已摄入: 碳${Math.round(intake.c)} 蛋${Math.round(intake.p)} 脂${Math.round(intake.f)} = ${intake.kcal}kcal
 ${mealsTxt}
@@ -1404,7 +1409,7 @@ function aiCardHtml(c, mi, ci){
     ttl = `记录饮食 <span class="tag">${MEAL_NAMES[a.meal]||a.meal}</span>`;
     rows = a.items.map(it=>`<div class="rowi"><span>${esc(it.name)}${it.amt?' · '+esc(it.amt):''}${it.is_new?' <span class="fbadge ai">新入库</span>':''}</span><span class="m">${Math.round(it.c*4+it.p*4+it.f*9)}kcal · 碳${Math.round(it.c)} 蛋${Math.round(it.p)} 脂${Math.round(it.f)}</span></div>`).join('');
     if(c.status==='pending'){
-      const day=getDay(curDate), q=quotas(day), intake=dayIntake(day);
+      const day=getDay(todayStr()), q=quotas(day), intake=dayIntake(day);
       const aC=a.items.reduce((s,it)=>s+it.c,0), aP=a.items.reduce((s,it)=>s+it.p,0), aF=a.items.reduce((s,it)=>s+it.f,0);
       foot = `确认后今日剩余：碳 ${Math.round(q.c-intake.c-aC)}g · 蛋 ${Math.round(q.p-intake.p-aP)}g · 脂 ${Math.round(q.f-intake.f-aF)}g`;
     }
@@ -1414,7 +1419,7 @@ function aiCardHtml(c, mi, ci){
       ? a.items.map(it=>`<div class="rowi"><span>${esc(it.name)}${it.amt?' · '+esc(it.amt):''}${it.is_new?' <span class="fbadge ai">新入库</span>':''}</span><span class="m">${Math.round(it.c*4+it.p*4+it.f*9)}kcal · 碳${Math.round(it.c)} 蛋${Math.round(it.p)} 脂${Math.round(it.f)}</span></div>`).join('')
       : `<div class="rowi"><span style="color:var(--t3)">清空该餐记录</span></div>`;
     if(c.status==='pending'){
-      const cur = getDay(curDate).meals[a.meal].filter(it=>!it.pending);
+      const cur = getDay(todayStr()).meals[a.meal].filter(it=>!it.pending);
       foot = `将替换${MEAL_NAMES[a.meal]}现有 ${cur.length} 项记录（${cur.map(it=>it.name).join('+')||'空'}）`;
     }
   } else if(a.type==='add_food'){
@@ -1428,14 +1433,14 @@ function aiCardHtml(c, mi, ci){
       <div class="rowi"><span style="color:var(--p-dd);font-weight:600;">修正为</span><span class="m"><b>${Math.round(a.c*4+a.p*4+a.f*9)}kcal</b> · 碳${a.c} 蛋${a.p} 脂${a.f}${a.servG?' · '+a.servG+'g/份':''}</span></div>`;
   } else if(a.type==='save_combo'){
     ttl = '存为套餐';
-    const items = getDay(curDate).meals[a.meal].filter(it=>!it.pending);
+    const items = getDay(todayStr()).meals[a.meal].filter(it=>!it.pending);
     rows = `<div class="rowi"><span>${esc(a.name)} <span class="fbadge combo">自建套餐</span></span><span class="m">${MEAL_NAMES[a.meal]} · ${items.map(it=>it.name).join('+')||'（该餐暂无记录）'}</span></div>`;
   } else if(a.type==='add_exercise' || a.type==='remove_exercise'){
     ttl = a.type==='add_exercise' ? '动作库添加' : '动作库移除';
     rows = `<div class="rowi"><span>${esc(a.ex)}</span><span class="m">${esc(a.dayName)}日动作库</span></div>`;
   } else if(a.type==='log_weight'){
     ttl = '记录体重';
-    rows = `<div class="rowi"><span>${a.kg} kg</span><span class="m">${curDate}</span></div>`;
+    rows = `<div class="rowi"><span>${a.kg} kg</span><span class="m">${todayStr()}</span></div>`;
   }
   const btns = c.status==='pending'
     ? `<div class="btns"><button class="ok" onclick="aiConfirm(${mi},${ci})">确认</button><button class="no" onclick="aiCancel(${mi},${ci})">取消</button></div>`
@@ -1457,7 +1462,8 @@ function aiValidate(a){
   return false;
 }
 function aiExec(a){
-  const day = getDay(curDate);
+  const ds = todayStr();  // AI动作始终落在真实今天
+  const day = getDay(ds);
   if(a.type==='log_strength'){
     const sd = D.split.find(s=>s.name===a.dayName);
     const min = +a.min||70;
@@ -1478,8 +1484,8 @@ function aiExec(a){
     for(const it of a.items){
       day.meals[a.meal].push({name:''+it.name, amt:it.amt||'', qty:1, mode:'serv', c:+(+it.c).toFixed(1), p:+(+it.p).toFixed(1), f:+(+it.f).toFixed(1)});
       if(it.is_new && it.lib && !D.foods.some(f=>f.name===it.name)){
-        D.foods.push({name:''+it.name, cat:'AI估算', serv:it.lib.serv||'1份', servG:+it.lib.servG||0, c:+it.lib.c||+it.c, p:+it.lib.p||+it.p, f:+it.lib.f||+it.f, uses:1});
-        D.removedFoods = D.removedFoods.filter(n=>n!==it.name);
+        D.foods.push({name:''+it.name, cat:'AI估算', serv:it.lib.serv||'1份', servG:+it.lib.servG||0, c:+it.lib.c||+it.c, p:+it.lib.p||+it.p, f:+it.lib.f||+it.f, uses:1, ts:Date.now()});
+        D.removedFoods = D.removedFoods.filter(t=>t.n!==it.name);
       }
       const f = D.foods.find(x=>x.name===it.name);
       if(f){ f.uses=(f.uses||0)+1; pushRecent(it.name); }
@@ -1491,16 +1497,16 @@ function aiExec(a){
     day.meals[a.meal] = a.items.map(it=>({name:''+it.name, amt:it.amt||'', qty:1, mode:'serv', c:+(+it.c).toFixed(1), p:+(+it.p).toFixed(1), f:+(+it.f).toFixed(1)})).concat(pendings);
     for(const it of a.items){
       if(it.is_new && it.lib && !D.foods.some(f=>f.name===it.name)){
-        D.foods.push({name:''+it.name, cat:'AI估算', serv:it.lib.serv||'1份', servG:+it.lib.servG||0, c:+it.lib.c||+it.c, p:+it.lib.p||+it.p, f:+it.lib.f||+it.f, uses:1});
-        D.removedFoods = D.removedFoods.filter(n=>n!==it.name);
+        D.foods.push({name:''+it.name, cat:'AI估算', serv:it.lib.serv||'1份', servG:+it.lib.servG||0, c:+it.lib.c||+it.c, p:+it.lib.p||+it.p, f:+it.lib.f||+it.f, uses:1, ts:Date.now()});
+        D.removedFoods = D.removedFoods.filter(t=>t.n!==it.name);
       }
     }
     return `已把${MEAL_NAMES[a.meal]}修改为 ${a.items.length}项`;
   }
   if(a.type==='add_food'){
     if(D.foods.some(f=>f.name===a.name)) return `「${a.name}」已在库中，未重复添加`;
-    D.foods.push({name:''+a.name, cat:'自定义', serv:a.serv||'1份', servG:+a.servG||0, c:+a.c, p:+a.p, f:+a.f, uses:0, user:true});
-    D.removedFoods = D.removedFoods.filter(n=>n!==a.name);
+    D.foods.push({name:''+a.name, cat:'自定义', serv:a.serv||'1份', servG:+a.servG||0, c:+a.c, p:+a.p, f:+a.f, uses:0, user:true, ts:Date.now()});
+    D.removedFoods = D.removedFoods.filter(t=>t.n!==a.name);
     return `已入库 ${a.name}（自建）`;
   }
   if(a.type==='update_food'){
@@ -1516,8 +1522,8 @@ function aiExec(a){
     const items = day.meals[a.meal].filter(it=>!it.pending).map(it=>({...it}));
     if(items.length<2) return null;
     if(D.combos.some(c=>c.name===a.name) || D.foods.some(f=>f.name===a.name)) return `「${a.name}」名字已存在，未保存`;
-    D.combos.push({name:''+a.name, items, uses:1});
-    D.removedCombos = D.removedCombos.filter(n=>n!==a.name);
+    D.combos.push({name:''+a.name, items, uses:1, ts:Date.now()});
+    D.removedCombos = D.removedCombos.filter(t=>t.n!==a.name);
     return `已存为套餐「${a.name}」· ${items.length}项`;
   }
   if(a.type==='add_exercise'){
@@ -1532,8 +1538,8 @@ function aiExec(a){
     return `已从${sd.name}日动作库移除 ${a.ex}`;
   }
   if(a.type==='log_weight'){
-    D.weights = D.weights.filter(w=>w.d!==curDate);
-    D.weights.push({d:curDate, kg:+a.kg});
+    D.weights = D.weights.filter(w=>w.d!==ds);
+    D.weights.push({d:ds, kg:+a.kg});
     D.weights.sort((x,y)=>x.d<y.d?-1:1);
     D.profile.weight = D.weights[D.weights.length-1].kg;
     return `已记录体重 ${a.kg}kg`;
@@ -1546,7 +1552,7 @@ function aiConfirm(mi, ci){
   const receipt = aiExec(c.action);
   if(receipt===null){ toast('该餐记录不足2项，无法存套餐'); return; }
   c.status = 'done';
-  touch(curDate);
+  touch(todayStr());
   aiPush({role:'exec', text:receipt});
   renderToday(); renderTrain(); renderTrend(); autoSync();
 }
@@ -1568,13 +1574,20 @@ function aiParse(txt){
   }catch(e){ return null; }
 }
 async function aiCall(cfg, messages){
-  const res = await fetch(cfg.base.replace(/\/$/,'')+'/chat/completions', {
-    method:'POST', headers:{'Content-Type':'application/json', Authorization:'Bearer '+cfg.key},
-    body: JSON.stringify({model:cfg.model, temperature:0.2, messages})
-  });
-  if(!res.ok) throw new Error('HTTP '+res.status);
-  const j = await res.json();
-  return j.choices[0].message.content;
+  // 移动网络下偶发 Load failed / 5xx：失败自动重试一次再报错
+  let lastErr;
+  for(let att=0; att<2; att++){
+    try{
+      const res = await fetch(cfg.base.replace(/\/$/,'')+'/chat/completions', {
+        method:'POST', headers:{'Content-Type':'application/json', Authorization:'Bearer '+cfg.key},
+        body: JSON.stringify({model:cfg.model, temperature:0.2, messages})
+      });
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const j = await res.json();
+      return j.choices[0].message.content;
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr;
 }
 async function sendAI(){
   const inp = document.getElementById('aiInput');
@@ -1644,7 +1657,7 @@ function aiClear(){
 function aiReview(kind){
   if(!aiReady('chat')){ toast('先在设置页配置对话模型'); return; }
   if(aiBusy){ toast('等上一条回复完'); return; }
-  const stats = kind==='day' ? aiDayStats(curDate) : aiWeekStats();
+  const stats = kind==='day' ? aiDayStats(todayStr()) : aiWeekStats();
   aiPush({role:'user', text: kind==='day' ? '请做今日回顾' : '请做本周回顾'});
   aiPush({role:'exec', text:'统计数据（app自动计算）：\n'+stats, brief:'已附上'+(kind==='day'?'今日':'本周')+'统计数据'});
   aiRequest(null);
@@ -1659,7 +1672,7 @@ function aiDayStats(ds){
 function aiWeekStats(){
   const out = [];
   for(let n=6; n>=0; n--){
-    const ds = dateOffset(curDate, -n);
+    const ds = dateOffset(todayStr(), -n);
     if(D.days[ds]) out.push(aiDayStats(ds));
   }
   const ws = D.weights.slice(-8);
@@ -2378,7 +2391,7 @@ function mergeData(remote){
   D.weights = Object.values(wmap).sort((a,b)=>a.d<b.d?-1:1);
   if(D.weights.length) D.profile.weight = D.weights[D.weights.length-1].kg;
   const names = new Set(D.foods.map(f=>f.name));
-  for(const f of (remote.foods||[])) if(!names.has(f.name)) D.foods.push({name:f.name, cat:f.cat||'AI估算', serv:f.serv||f.unit||'1份', servG:f.servG||0, c:f.c, p:f.p, f:f.f, uses:f.uses||0});
+  for(const f of (remote.foods||[])) if(!names.has(f.name)) D.foods.push({name:f.name, cat:f.cat||'AI估算', serv:f.serv||f.unit||'1份', servG:f.servG||0, c:f.c, p:f.p, f:f.f, uses:f.uses||0, ts:f.ts});
   const pmap = {};
   for(const p of (remote.pending||[])) pmap[p.id]=p;
   for(const p of D.pending) pmap[p.id]=p;
@@ -2412,17 +2425,17 @@ function mergeData(remote){
       if(sd) for(const e of (remote.customEx[k]||[])) if(!sd.ex.includes(e)) sd.ex.push(e);
     }
   }
-  // 套餐与删除墓碑：墓碑并集，先并集内容再按墓碑过滤（防止已删条目从远端复活）
-  D.removedFoods = [...new Set([...(D.removedFoods||[]), ...(remote.removedFoods||[])])];
-  D.removedCombos = [...new Set([...(D.removedCombos||[]), ...(remote.removedCombos||[])])];
-  // 恢复白名单豁免：墓碑并集只增不减，白名单食物在此强制摘除墓碑并补回，否则旧端墓碑会反复删掉它们
-  D.removedFoods = D.removedFoods.filter(n=>!RESTORED_FOODS.some(f=>f.name===n));
+  // 套餐与删除墓碑：按名取最新墓碑，条目入库时间(ts)晚于墓碑则存活——重新入库不再被旧墓碑反复删掉
+  D.removedFoods = tombMerge(D.removedFoods, remote.removedFoods);
+  D.removedCombos = tombMerge(D.removedCombos, remote.removedCombos);
+  // 恢复白名单豁免：白名单食物强制摘除墓碑并补回
+  D.removedFoods = D.removedFoods.filter(t=>!RESTORED_FOODS.some(f=>f.name===t.n));
   for(const f of RESTORED_FOODS) if(!D.foods.some(x=>x.name===f.name)) D.foods.push({...f});
   const cmap = {};
   for(const c of (remote.combos||[])) cmap[c.name]=c;
   for(const c of (D.combos||[])) cmap[c.name]=c;
-  D.combos = Object.values(cmap).filter(c=>!D.removedCombos.includes(c.name));
-  D.foods = D.foods.filter(f=>!D.removedFoods.includes(f.name));
+  D.combos = Object.values(cmap).filter(c=>{ const t=D.removedCombos.find(x=>x.n===c.name); return !t || (c.ts||0) > t.ts; });
+  D.foods = D.foods.filter(f=>{ const t=D.removedFoods.find(x=>x.n===f.name); return !t || (f.ts||0) > t.ts; });
 }
 
 /* ================= 导航 ================= */
