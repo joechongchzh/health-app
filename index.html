@@ -1106,7 +1106,7 @@ function comboRowHtml(cb){
 }
 function renderFoodList(){
   const kw = document.getElementById('foodSearch').value.trim();
-  const cats = ['常用','最近','外卖','主食','肉蛋','水产','蔬菜','水果','乳豆','零食','饮品','调料','其他'];
+  const cats = ['常用','套餐','最近','外卖','主食','肉蛋','水产','蔬菜','水果','乳豆','零食','饮品','调料','其他'];
   document.getElementById('foodCats').innerHTML = kw ? '' : cats.map(c=>
     `<button class="pill ${sheetCat===c?'on':''}" onclick="sheetCat='${c}';renderFoodList()">${c}</button>`).join('');
   let list;
@@ -1115,6 +1115,7 @@ function renderFoodList(){
     list = [...D.combos.filter(c=>c.name.toLowerCase().includes(kw.toLowerCase())),
             ...D.foods.filter(f=>f.name.toLowerCase().includes(kw.toLowerCase()))];
   }
+  else if(sheetCat==='套餐') list = [...D.combos].sort((a,b)=>(b.uses||0)-(a.uses||0));
   else if(sheetCat==='最近') list = D.recent.map(n=>D.foods.find(f=>f.name===n)).filter(Boolean);
   else if(sheetCat==='常用'){
     // 套餐与常用食物按使用次数混排
@@ -1124,7 +1125,7 @@ function renderFoodList(){
   else list = D.foods.filter(f=>f.cat===sheetCat);
   let html = list.slice(0,60).map(x=>x.items?comboRowHtml(x):foodRowHtml(x)).join('');
   if(!kw && !list.length){
-    html = `<div class="hint" style="padding:14px 0;">${sheetCat==='常用'?'还没有常用记录，先从分类里挑或直接搜索':sheetCat==='最近'?'还没有记录':'这个分类暂时是空的'}</div>`;
+    html = `<div class="hint" style="padding:14px 0;">${sheetCat==='常用'?'还没有常用记录，先从分类里挑或直接搜索':sheetCat==='套餐'?'还没有保存的套餐，记完一餐后点「存为套餐」':sheetCat==='最近'?'还没有记录':'这个分类暂时是空的'}</div>`;
   }
   document.getElementById('foodList').innerHTML = html;
   document.getElementById('foodNotFound').style.display = (kw && list.length===0) ? 'block' : 'none';
