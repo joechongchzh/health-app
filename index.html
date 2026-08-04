@@ -1349,6 +1349,7 @@ function aiSystemPrompt(){
 {"type":"log_weight","kg":数值}
 【规则】食物、动作、训练日优先精确匹配下方库里的现有名称，匹配不到才造新名并标is_new。外卖/餐馆食物按重油重调味口径估算热量，宁可高估不低估。数值明显异常（重量>300kg、单餐>3000kcal）先追问确认。用户没说哪一餐时按当前时间推断并在reply里说明。饮食建议要对照该餐剩余配额给结论。
 【重要边界】log_food只会往一餐里追加，绝不能用它做修改或删除；要修改/删除某餐的已有记录，必须用set_meal给出修改后的完整列表。已记录的训练无法通过对话修改或删除，用户提出时如实说明并引导他去训练页点击那条记录编辑。没有对应动作类型的操作不要假装完成。
+【补记历史】log_strength/log_cardio/log_food/set_meal/log_weight/save_combo 可带可选字段"date":"YYYY-MM-DD"把记录落到历史某天（用户说"昨天""8月2日"时按下方今天日期换算，不得晚于今天）。用户没明确指定日期就不带date（默认落今天），绝不自行猜测日期。注意：下方注入的配额/三餐/训练数据都是今天的，你看不到历史日期已有的记录——补记用log_food追加没问题，但对历史日期用set_meal前必须先让用户报出该餐修改后的完整内容。
 【复核】用户质疑某食物热量估得不合理时，认真重估（重点检查食用油、酱料、糖、坚果等易漏项），用update_food修正库内单份数据；若今天已用旧数据记过该食物，主动提出并用set_meal把对应餐次一并修正。
 【今天 ${ds} 周${'日一二三四五六'[new Date(ds).getDay()]}】
 日型:${({train:'力量日',rest:'休息日',cardio:'有氧日'})[day.type]} · 体重:${D.profile.weight}kg · 目标:${GOALS[D.profile.goal]}
@@ -1409,9 +1410,9 @@ function aiCardHtml(c, mi, ci){
     ttl = `记录饮食 <span class="tag">${MEAL_NAMES[a.meal]||a.meal}</span>`;
     rows = a.items.map(it=>`<div class="rowi"><span>${esc(it.name)}${it.amt?' · '+esc(it.amt):''}${it.is_new?' <span class="fbadge ai">新入库</span>':''}</span><span class="m">${Math.round(it.c*4+it.p*4+it.f*9)}kcal · 碳${Math.round(it.c)} 蛋${Math.round(it.p)} 脂${Math.round(it.f)}</span></div>`).join('');
     if(c.status==='pending'){
-      const day=getDay(todayStr()), q=quotas(day), intake=dayIntake(day);
+      const day=getDay(aiDate(a)), q=quotas(day), intake=dayIntake(day);
       const aC=a.items.reduce((s,it)=>s+it.c,0), aP=a.items.reduce((s,it)=>s+it.p,0), aF=a.items.reduce((s,it)=>s+it.f,0);
-      foot = `确认后今日剩余：碳 ${Math.round(q.c-intake.c-aC)}g · 蛋 ${Math.round(q.p-intake.p-aP)}g · 脂 ${Math.round(q.f-intake.f-aF)}g`;
+      foot = `确认后${aiDate(a)===todayStr()?'今日':'该日'}剩余：碳 ${Math.round(q.c-intake.c-aC)}g · 蛋 ${Math.round(q.p-intake.p-aP)}g · 脂 ${Math.round(q.f-intake.f-aF)}g`;
     }
   } else if(a.type==='set_meal'){
     ttl = `修改饮食 <span class="tag">${MEAL_NAMES[a.meal]||a.meal}</span>`;
@@ -1419,7 +1420,7 @@ function aiCardHtml(c, mi, ci){
       ? a.items.map(it=>`<div class="rowi"><span>${esc(it.name)}${it.amt?' · '+esc(it.amt):''}${it.is_new?' <span class="fbadge ai">新入库</span>':''}</span><span class="m">${Math.round(it.c*4+it.p*4+it.f*9)}kcal · 碳${Math.round(it.c)} 蛋${Math.round(it.p)} 脂${Math.round(it.f)}</span></div>`).join('')
       : `<div class="rowi"><span style="color:var(--t3)">清空该餐记录</span></div>`;
     if(c.status==='pending'){
-      const cur = getDay(todayStr()).meals[a.meal].filter(it=>!it.pending);
+      const cur = getDay(aiDate(a)).meals[a.meal].filter(it=>!it.pending);
       foot = `将替换${MEAL_NAMES[a.meal]}现有 ${cur.length} 项记录（${cur.map(it=>it.name).join('+')||'空'}）`;
     }
   } else if(a.type==='add_food'){
@@ -1433,22 +1434,26 @@ function aiCardHtml(c, mi, ci){
       <div class="rowi"><span style="color:var(--p-dd);font-weight:600;">修正为</span><span class="m"><b>${Math.round(a.c*4+a.p*4+a.f*9)}kcal</b> · 碳${a.c} 蛋${a.p} 脂${a.f}${a.servG?' · '+a.servG+'g/份':''}</span></div>`;
   } else if(a.type==='save_combo'){
     ttl = '存为套餐';
-    const items = getDay(todayStr()).meals[a.meal].filter(it=>!it.pending);
+    const items = getDay(aiDate(a)).meals[a.meal].filter(it=>!it.pending);
     rows = `<div class="rowi"><span>${esc(a.name)} <span class="fbadge combo">自建套餐</span></span><span class="m">${MEAL_NAMES[a.meal]} · ${items.map(it=>it.name).join('+')||'（该餐暂无记录）'}</span></div>`;
   } else if(a.type==='add_exercise' || a.type==='remove_exercise'){
     ttl = a.type==='add_exercise' ? '动作库添加' : '动作库移除';
     rows = `<div class="rowi"><span>${esc(a.ex)}</span><span class="m">${esc(a.dayName)}日动作库</span></div>`;
   } else if(a.type==='log_weight'){
     ttl = '记录体重';
-    rows = `<div class="rowi"><span>${a.kg} kg</span><span class="m">${todayStr()}</span></div>`;
+    rows = `<div class="rowi"><span>${a.kg} kg</span><span class="m">${aiDate(a)}</span></div>`;
   }
+  if(a.date && a.date!==todayStr()) ttl += ` <span class="tag">补记 ${+a.date.slice(5,7)}/${+a.date.slice(8)}</span>`;
   const btns = c.status==='pending'
     ? `<div class="btns"><button class="ok" onclick="aiConfirm(${mi},${ci})">确认</button><button class="no" onclick="aiCancel(${mi},${ci})">取消</button></div>`
     : `<div class="stamp ${c.status==='done'?'okc':'noc'}">${c.status==='done'?'✓ 已执行':'已取消'}</div>`;
   return `<div class="aicard ${c.status!=='pending'?'done':''}"><div class="ttl">${ttl}</div>${rows}${foot?`<div class="foot">${foot}</div>`:''}${btns}</div>`;
 }
+/* 记录类动作可带 date=YYYY-MM-DD 补记历史，缺省=真实今天（合法性由 aiValidate 把关） */
+function aiDate(a){ return a.date || todayStr(); }
 function aiValidate(a){
   try{
+    if(a.date!==undefined && !(typeof a.date==='string' && /^\d{4}-\d{2}-\d{2}$/.test(a.date) && a.date<=todayStr())) return false;
     if(a.type==='log_strength') return !!(D.split.some(s=>s.name===a.dayName) && a.entries && a.entries.length && a.entries.every(e=>e.ex && e.w>=0 && e.w<500 && e.r>0 && e.r<200 && e.s>0 && e.s<30));
     if(a.type==='log_cardio') return !!(a.name && a.min>0 && a.min<600);
     if(a.type==='log_food') return !!(MEAL_NAMES[a.meal] && a.items && a.items.length && a.items.every(it=>it.name && it.c>=0 && it.c<1000 && it.p>=0 && it.p<500 && it.f>=0 && it.f<500));
@@ -1462,7 +1467,7 @@ function aiValidate(a){
   return false;
 }
 function aiExec(a){
-  const ds = todayStr();  // AI动作始终落在真实今天
+  const ds = aiDate(a);  // 默认真实今天；带date的动作落在指定的历史日期
   const day = getDay(ds);
   if(a.type==='log_strength'){
     const sd = D.split.find(s=>s.name===a.dayName);
@@ -1552,8 +1557,9 @@ function aiConfirm(mi, ci){
   const receipt = aiExec(c.action);
   if(receipt===null){ toast('该餐记录不足2项，无法存套餐'); return; }
   c.status = 'done';
-  touch(todayStr());
-  aiPush({role:'exec', text:receipt});
+  const ds = aiDate(c.action);
+  touch(ds);
+  aiPush({role:'exec', text:receipt + (ds!==todayStr()?`（补记 ${ds}）`:'')});
   renderToday(); renderTrain(); renderTrend(); autoSync();
 }
 function aiCancel(mi, ci){
