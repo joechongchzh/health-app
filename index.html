@@ -274,6 +274,7 @@ canvas.chart{width:100%; height:auto; display:block;}
 .suppmg .tms{font-size:11.5px; color:var(--t3); margin-left:8px; flex:1;}
 .chk{display:inline-flex; align-items:center; gap:5px; margin-right:12px; font-size:13.5px; color:var(--t2);}
 .chk input{width:17px; height:17px; accent-color:var(--p);}
+.medtag{font-size:10px; background:#FEF3C7; color:#B45309; border-radius:5px; padding:1.5px 5px; margin-left:5px;}
 </style>
 </head>
 <body>
@@ -544,15 +545,15 @@ canvas.chart{width:100%; height:auto; display:block;}
   <div class="bd">
     <div id="suppMgList"></div>
     <label class="f">新增补剂 / 药品</label>
-    <input id="newSuppName" placeholder="名称，如：辅酶Q10">
-    <label class="f">服用时机（可多选）</label>
-    <div style="margin-bottom:6px;">
-      <label class="chk"><input type="checkbox" id="st_早">早</label>
-      <label class="chk"><input type="checkbox" id="st_午">午</label>
-      <label class="chk"><input type="checkbox" id="st_晚">晚</label>
-      <label class="chk"><input type="checkbox" id="st_练后">练后</label>
+    <div class="seg" style="margin-bottom:10px;" id="suppKindSeg">
+      <button class="on" onclick="setSuppKind('supp')">补剂</button>
+      <button onclick="setSuppKind('med')">药品</button>
     </div>
-    <label class="chk" style="margin-bottom:12px;"><input type="checkbox" id="st_trainOnly">仅训练日显示</label>
+    <input id="newSuppName" placeholder="名称，如：辅酶Q10">
+    <input id="newSuppDose" placeholder="用量（可选），如：2粒 / 5g / 半片" style="margin-top:8px;">
+    <label class="f">服用时机（可多选）</label>
+    <div id="suppTimeSel" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px;"></div>
+    <div style="margin-bottom:14px;"><button class="pill" id="suppTrainOnly" onclick="toggleSuppTrainOnly()">仅训练日显示</button></div>
     <button class="btn" onclick="addSupp()">添加</button>
   </div>
 </div>
@@ -1017,7 +1018,7 @@ function renderToday(){
     if(s.trainOnly && day.type!=='train') continue;
     for(const t of s.times){
       const k = s.id+'_'+t;
-      chips.push(`<button class="supp ${day.supps[k]?'on':''}" onclick="toggleSupp('${k}')">${day.supps[k]?'✓':''} ${s.name}<span class="tm">${t}</span></button>`);
+      chips.push(`<button class="supp ${day.supps[k]?'on':''}" onclick="toggleSupp('${k}')">${day.supps[k]?'✓':''} ${s.name}${s.kind==='med'?'<span class="medtag">药</span>':''}<span class="tm">${t}${s.dose?' · '+s.dose:''}</span></button>`);
     }
   }
   document.getElementById('suppBox').innerHTML = chips.join('') || '<div class="hint">今天没有需要打卡的补剂</div>';
@@ -1834,22 +1835,36 @@ function renderCalDetail(){
 function calGo(){ curDate = calSel; closeSheets(); renderAll(); window.scrollTo(0,0); }
 
 /* ================= 补剂管理 ================= */
-function openSuppMg(){ renderSuppMg(); showSheet('suppSheet'); }
+/* 服用时机用 pill 按钮自绘多选（iOS 上原生 checkbox 触控不可靠，表现为只能单选） */
+let suppKind='supp', suppTimePicked=new Set(), suppTrainOnly=false;
+function openSuppMg(){ renderSuppMg(); renderSuppSel(); showSheet('suppSheet'); }
+function setSuppKind(k){
+  suppKind = k;
+  [...document.getElementById('suppKindSeg').children].forEach((b,i)=>b.classList.toggle('on', ['supp','med'][i]===k));
+}
+function toggleSuppTime(t){ suppTimePicked.has(t) ? suppTimePicked.delete(t) : suppTimePicked.add(t); renderSuppSel(); }
+function toggleSuppTrainOnly(){ suppTrainOnly = !suppTrainOnly; renderSuppSel(); }
+function renderSuppSel(){
+  document.getElementById('suppTimeSel').innerHTML = SUPP_TIMES.map(t=>
+    `<button class="pill ${suppTimePicked.has(t)?'on':''}" onclick="toggleSuppTime('${t}')">${t}</button>`).join('');
+  document.getElementById('suppTrainOnly').className = 'pill'+(suppTrainOnly?' on':'');
+}
 function renderSuppMg(){
   document.getElementById('suppMgList').innerHTML = D.suppDefs.map((s,i)=>
-    `<div class="suppmg"><b>${s.name}</b><span class="tms">${s.times.join('、')}${s.trainOnly?' · 仅训练日':''}</span>
+    `<div class="suppmg"><b>${s.name}</b>${s.kind==='med'?'<span class="medtag">药</span>':''}<span class="tms">${s.dose?s.dose+' · ':''}${s.times.join('、')}${s.trainOnly?' · 仅训练日':''}</span>
     <button style="background:none;border:0;color:#CBD5E1;font-size:15px;padding:4px 8px;" onclick="delSupp(${i})">✕</button></div>`).join('');
 }
 function addSupp(){
   const name = document.getElementById('newSuppName').value.trim();
   if(!name){ toast('填一下名称'); return; }
-  const times = SUPP_TIMES.filter(t=>document.getElementById('st_'+t).checked);
+  const times = SUPP_TIMES.filter(t=>suppTimePicked.has(t));
   if(!times.length){ toast('至少选一个时机'); return; }
-  D.suppDefs.push({id:'s'+Date.now(), name, times, trainOnly:document.getElementById('st_trainOnly').checked});
-  save(); renderSuppMg(); renderToday();
+  const dose = document.getElementById('newSuppDose').value.trim();
+  D.suppDefs.push({id:'s'+Date.now(), name, kind:suppKind, dose, times, trainOnly:suppTrainOnly});
+  save(); renderSuppMg(); renderToday(); autoSync();
   document.getElementById('newSuppName').value='';
-  SUPP_TIMES.forEach(t=>document.getElementById('st_'+t).checked=false);
-  document.getElementById('st_trainOnly').checked=false;
+  document.getElementById('newSuppDose').value='';
+  suppTimePicked.clear(); suppTrainOnly=false; setSuppKind('supp'); renderSuppSel();
   toast('已添加 '+name);
 }
 function delSupp(i){ D.suppDefs.splice(i,1); save(); renderSuppMg(); renderToday(); }
