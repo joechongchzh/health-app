@@ -1,0 +1,17 @@
+project_id = "health-app"
+
+[auth]
+site_url = "http://localhost:5173/health-app/"
+additional_redirect_urls = ["https://joechongchzh.github.io/health-app/"]
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+double_confirm_changes = true
+
+[functions.redeem-invite]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true

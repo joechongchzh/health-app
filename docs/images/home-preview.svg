@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="650" viewBox="0 0 1100 650">
+  <rect width="1100" height="650" rx="28" fill="#edf3ef"/>
+  <rect x="70" y="36" width="360" height="578" rx="42" fill="#f8faf9" stroke="#d4e0da" stroke-width="8"/>
+  <text x="105" y="85" font-family="system-ui,sans-serif" font-size="20" font-weight="700" fill="#18332a">健康追踪</text>
+  <text x="105" y="138" font-family="system-ui,sans-serif" font-size="15" fill="#698078">2026-08-14</text>
+  <text x="105" y="174" font-family="system-ui,sans-serif" font-size="30" font-weight="800" fill="#18332a">你好，小绿</text>
+  <text x="105" y="203" font-family="system-ui,sans-serif" font-size="15" fill="#698078">今天也做一点对未来有用的事。</text>
+  <circle cx="365" cy="167" r="34" fill="none" stroke="#bce5d4" stroke-width="8"/>
+  <text x="365" y="174" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" font-weight="800" fill="#08704e">62%</text>
+  <rect x="98" y="233" width="304" height="78" rx="18" fill="white"/>
+  <rect x="112" y="269" width="88" height="29" rx="10" fill="#11845e"/>
+  <rect x="206" y="269" width="88" height="29" rx="10" fill="#eef2f0"/>
+  <rect x="300" y="269" width="88" height="29" rx="10" fill="#eef2f0"/>
+  <text x="156" y="289" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" fill="white">力量日</text>
+  <text x="250" y="289" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" fill="#698078">有氧日</text>
+  <text x="344" y="289" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" fill="#698078">休息日</text>
+  <g font-family="system-ui,sans-serif">
+    <rect x="98" y="328" width="146" height="96" rx="18" fill="white"/><text x="114" y="353" font-size="13" fill="#698078">蛋白</text><text x="114" y="389" font-size="28" font-weight="800" fill="#18332a">96</text><text x="168" y="389" font-size="13" fill="#698078">/ 120g</text><rect x="114" y="404" width="112" height="5" rx="3" fill="#dce6e1"/><rect x="114" y="404" width="80" height="5" rx="3" fill="#11845e"/>
+    <rect x="256" y="328" width="146" height="96" rx="18" fill="white"/><text x="272" y="353" font-size="13" fill="#698078">热量</text><text x="272" y="389" font-size="28" font-weight="800" fill="#18332a">1240</text><text x="342" y="389" font-size="13" fill="#698078">kcal</text><rect x="272" y="404" width="112" height="5" rx="3" fill="#dce6e1"/><rect x="272" y="404" width="69" height="5" rx="3" fill="#11845e"/>
+  </g>
+  <rect x="98" y="449" width="304" height="92" rx="18" fill="white"/>
+  <text x="118" y="480" font-family="system-ui,sans-serif" font-size="17" font-weight="700" fill="#18332a">今日概览</text>
+  <text x="118" y="514" font-family="system-ui,sans-serif" font-size="14" fill="#698078">饮食 4 条　训练 1 条　补剂 2 项</text>
+  <rect x="98" y="558" width="304" height="42" rx="16" fill="white"/>
+  <text x="250" y="585" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" fill="#11845e">今日　饮食　训练　AI　我的</text>
+  <text x="515" y="125" font-family="system-ui,sans-serif" font-size="38" font-weight="800" fill="#18332a">健康追踪 v3</text>
+  <text x="515" y="169" font-family="system-ui,sans-serif" font-size="20" fill="#698078">本地优先 · 账号隔离 · 多设备同步</text>
+  <g font-family="system-ui,sans-serif" font-size="18" fill="#18332a">
+    <rect x="515" y="220" width="510" height="70" rx="18" fill="white"/><circle cx="550" cy="255" r="15" fill="#d9f1e7"/><text x="550" y="261" text-anchor="middle" fill="#08704e">✓</text><text x="585" y="262">离线也能继续记录，恢复联网后同步</text>
+    <rect x="515" y="308" width="510" height="70" rx="18" fill="white"/><circle cx="550" cy="343" r="15" fill="#d9f1e7"/><text x="550" y="349" text-anchor="middle" fill="#08704e">✓</text><text x="585" y="350">邮箱验证码与邀请码注册</text>
+    <rect x="515" y="396" width="510" height="70" rx="18" fill="white"/><circle cx="550" cy="431" r="15" fill="#d9f1e7"/><text x="550" y="437" text-anchor="middle" fill="#08704e">✓</text><text x="585" y="438">AI Key 只保存在当前设备</text>
+    <rect x="515" y="484" width="510" height="70" rx="18" fill="white"/><circle cx="550" cy="519" r="15" fill="#d9f1e7"/><text x="550" y="525" text-anchor="middle" fill="#08704e">✓</text><text x="585" y="526">兼容 iPhone 与 Android 主屏幕安装</text>
+  </g>
+</svg>
