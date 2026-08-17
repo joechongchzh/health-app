@@ -13,7 +13,7 @@
 - 五栏移动端界面：今日、饮食、训练、AI、我的
 - 按档案和日型动态计算营养配额，女性 BMR 使用正确的 Mifflin-St Jeor 公式
 - IndexedDB 本地优先；离线增删改、恢复联网与前台时自动同步
-- Supabase 邮箱六位验证码登录、邀请码注册、RLS 账号隔离
+- Supabase 邮箱 magic link 登录、邀请码注册、RLS 账号隔离
 - 条目级 UUID、版本、软删除和冲突处理，避免整天 JSON 相互覆盖
 - 旧版 `ht_data_v1` 预览、备份、幂等迁移；v3 JSON 导入导出
 - AI 文字、视觉、语音接口分别配置，兼容 HTTPS OpenAI 风格接口
@@ -56,7 +56,7 @@ pnpm test:db
 
 ## Supabase 配置
 
-1. 创建 Supabase 项目，启用 Email OTP，并让模板发送 `{{ .Token }}` 六位验证码。
+1. 创建 Supabase 项目，启用邮箱登录（magic link）。免费套餐用默认邮件服务即可，登录邮件为链接而非验证码。
 2. 将 `.env.example` 复制为 `.env.local`，填入项目 URL 和 publishable/anon key。
 3. 执行 `supabase db push`。
 4. 部署函数：

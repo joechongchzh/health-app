@@ -27,7 +27,7 @@
   <text x="515" y="169" font-family="system-ui,sans-serif" font-size="20" fill="#698078">本地优先 · 账号隔离 · 多设备同步</text>
   <g font-family="system-ui,sans-serif" font-size="18" fill="#18332a">
     <rect x="515" y="220" width="510" height="70" rx="18" fill="white"/><circle cx="550" cy="255" r="15" fill="#d9f1e7"/><text x="550" y="261" text-anchor="middle" fill="#08704e">✓</text><text x="585" y="262">离线也能继续记录，恢复联网后同步</text>
-    <rect x="515" y="308" width="510" height="70" rx="18" fill="white"/><circle cx="550" cy="343" r="15" fill="#d9f1e7"/><text x="550" y="349" text-anchor="middle" fill="#08704e">✓</text><text x="585" y="350">邮箱验证码与邀请码注册</text>
+    <rect x="515" y="308" width="510" height="70" rx="18" fill="white"/><circle cx="550" cy="343" r="15" fill="#d9f1e7"/><text x="550" y="349" text-anchor="middle" fill="#08704e">✓</text><text x="585" y="350">邮箱链接与邀请码注册</text>
     <rect x="515" y="396" width="510" height="70" rx="18" fill="white"/><circle cx="550" cy="431" r="15" fill="#d9f1e7"/><text x="550" y="437" text-anchor="middle" fill="#08704e">✓</text><text x="585" y="438">AI Key 只保存在当前设备</text>
     <rect x="515" y="484" width="510" height="70" rx="18" fill="white"/><circle cx="550" cy="519" r="15" fill="#d9f1e7"/><text x="550" y="525" text-anchor="middle" fill="#08704e">✓</text><text x="585" y="526">兼容 iPhone 与 Android 主屏幕安装</text>
   </g>

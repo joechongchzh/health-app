@@ -10,7 +10,7 @@ export const supabase: SupabaseClient | null = isCloudConfigured
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: true,
       },
     })
   : null;
@@ -22,18 +22,15 @@ export function requireSupabase(): SupabaseClient {
   return supabase;
 }
 
-export async function sendEmailCode(email: string): Promise<void> {
+export async function sendMagicLink(email: string): Promise<void> {
   const client = requireSupabase();
   const { error } = await client.auth.signInWithOtp({
     email,
-    options: { shouldCreateUser: true },
+    options: {
+      shouldCreateUser: true,
+      emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
+    },
   });
-  if (error) throw error;
-}
-
-export async function verifyEmailCode(email: string, token: string): Promise<void> {
-  const client = requireSupabase();
-  const { error } = await client.auth.verifyOtp({ email, token, type: 'email' });
   if (error) throw error;
 }
 

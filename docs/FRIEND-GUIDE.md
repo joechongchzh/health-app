@@ -10,7 +10,7 @@
 
 邀请码：`【邀请码】`
 
-请用 iPhone 的 Safari 或 Android 的 Chrome 打开。输入邀请码和邮箱，收取六位验证码登录；然后确认隐私说明，填写身体档案、目标和训练方案。进入首页后，可以先在“饮食”记一餐，再在“训练”完成第一次打卡。
+请用 iPhone 的 Safari 或 Android 的 Chrome 打开。输入邀请码和邮箱，点击邮箱里的登录链接完成登录；然后确认隐私说明，填写身体档案、目标和训练方案。进入首页后，可以先在“饮食”记一餐，再在“训练”完成第一次打卡。
 
 iPhone 安装：Safari 底部“分享”→“添加到主屏幕”。Android 安装：Chrome 的安装提示，或右上角菜单→“安装应用”。
 
@@ -20,6 +20,6 @@ AI 是选配：在“我的→AI 接口”填你自己的 OpenAI 兼容 HTTPS Ba
 
 隐私说明：数据通过 HTTPS 和账号权限隔离，但不是端到端加密，项目管理员理论上可访问云端明文。本应用只做成年人一般健康管理，不提供医学诊断或处方。
 
-遇到问题请到 https://github.com/joechongchzh/health-app/issues/new/choose 反馈，并写清手机型号、系统版本、浏览器版本、复现步骤和截图；不要上传邮箱验证码、API Key 或真实隐私数据。
+遇到问题请到 https://github.com/joechongchzh/health-app/issues/new/choose 反馈，并写清手机型号、系统版本、浏览器版本、复现步骤和截图；不要上传登录链接、API Key 或真实隐私数据。
 
 ---
