@@ -35,9 +35,8 @@ import {
   isCloudConfigured,
   isActiveMember,
   redeemInvite,
-  sendEmailCode,
+  sendMagicLink,
   supabase,
-  verifyEmailCode,
 } from './services/supabase';
 import { syncUser } from './services/sync';
 
@@ -116,7 +115,6 @@ function Field({ label, children, hint }: { label: string; children: ReactNode; 
 function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void }) {
   const [invite, setInvite] = useState('');
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
   const [verifiedUser, setVerifiedUser] = useState<User | null>(null);
   const [busy, setBusy] = useState(false);
@@ -137,9 +135,9 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void
     setBusy(true);
     setMessage('');
     try {
-      await sendEmailCode(email.trim());
+      await sendMagicLink(email.trim());
       setSent(true);
-      setMessage('验证码已发送，请查看邮箱。');
+      setMessage('登录链接已发送，请查收邮箱并点击链接完成登录。');
     } catch (error) {
       setMessage(safeErrorMessage(error));
     } finally {
@@ -147,13 +145,12 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void
     }
   };
 
-  const verify = async (event: FormEvent) => {
+  const proceed = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
     try {
-      if (!verifiedUser) await verifyEmailCode(email.trim(), code.trim());
       const current = verifiedUser ?? (await supabase!.auth.getUser()).data.user;
-      if (!current) throw new Error('登录失败');
+      if (!current) throw new Error('请先点击邮箱中的登录链接完成登录');
       setVerifiedUser(current);
       if (!(await isActiveMember(current.id))) {
         if (!invite.trim()) throw new Error('首次使用请填写邀请码');
@@ -192,7 +189,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void
         <div className="brand-mark">健</div>
         <h1>欢迎使用健康追踪</h1>
         <p>正式版 v3.0.0 · 你的数据按账号隔离并支持多设备同步</p>
-        <form onSubmit={sent || verifiedUser ? verify : send}>
+        <form onSubmit={verifiedUser ? proceed : send}>
           <Field label="邀请码（首次使用）">
             <input
               value={invite}
@@ -210,31 +207,12 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void
               disabled={sent || Boolean(verifiedUser)}
             />
           </Field>
-          {sent && !verifiedUser && (
-            <Field label="邮箱六位验证码">
-              <input
-                inputMode="numeric"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                value={code}
-                onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
-                required
-              />
-            </Field>
-          )}
           {message && <p className="notice">{message}</p>}
           <Button type="submit" disabled={busy}>
-            {busy ? '请稍候…' : verifiedUser ? '验证邀请并继续' : sent ? '登录并验证邀请' : '发送验证码'}
+            {busy ? '请稍候…' : verifiedUser ? '验证邀请并继续' : sent ? '重新发送登录链接' : '发送登录链接'}
           </Button>
           {sent && !verifiedUser && (
-            <Button
-              type="button"
-              kind="ghost"
-              onClick={() => {
-                setSent(false);
-                setCode('');
-              }}
-            >
+            <Button type="button" kind="ghost" onClick={() => setSent(false)}>
               修改邮箱
             </Button>
           )}
