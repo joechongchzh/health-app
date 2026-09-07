@@ -1,8 +1,14 @@
-# 健康追踪 · v2.8.1
+# 健康追踪 · v2.8.2
 
 自用健康记录工具。HTML、CSS、JavaScript 全部放在 `index.html`，直接打开即可运行。`sw.js` 只提供静态页面离线缓存；没有前后端分离、React 构建或 Supabase 运行依赖。
 
 线上地址：[健康 App](https://joechongchzh.github.io/health-app/)。
+
+## 配置保留（v2.8.2）
+
+AI 三组模型的接口、密钥、模型名和 GitHub 同步配置单独保存于固定的本机存储，并保留一份本机配置备份。升级保留当前配置；健康 JSON 中配置缺失时恢复，首次迁移只从旧本机备份补回完全缺失的配置组，不覆盖新填写的模型。主动保存的修改和清空仍然生效。
+
+后台同步只使用已保存配置，旧标签页保存健康记录不会回写过期配置。普通导出和同步继续排除密钥、令牌及聊天。此保护限于同一浏览器来源；清除网站数据、换浏览器或换设备无法依靠本机备份自动恢复。
 
 ## 品牌名称复用（v2.8.1）
 
@@ -36,6 +42,7 @@ npm install --prefix .ci-deps --no-save --package-lock=false playwright@1.62.1
 node .ci-deps/node_modules/playwright/cli.js install chromium
 HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/legacy-regression.cjs
 HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/preservation.cjs
+HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/config-preservation.cjs
 ```
 
 Windows 可将 `HEALTH_TEST_NODE_MODULES` 指向已有 Playwright 运行时；测试使用本机 Edge。CI 使用 Chromium。全部测试在独立浏览器上下文中执行，外部健康数据写入被阻止。
