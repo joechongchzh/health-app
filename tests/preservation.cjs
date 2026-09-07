@@ -85,9 +85,9 @@ async function check(id,name,fn){try{await fn();results.push({id,name,status:'PA
       const changed=new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',()=>{if(navigator.serviceWorker.controller!==old)resolve();},{once:true}));
       const r=await navigator.serviceWorker.getRegistration();await r.update();await changed;
     });
-    await p.reload();assert.equal(await p.locator('meta[name="health-app-version"]').getAttribute('content'),'2.8.2');
+    await p.reload();assert.equal(await p.locator('meta[name="health-app-version"]').getAttribute('content'),'2.8.3');
     const unchanged=()=>p.evaluate(async()=>[localStorage.getItem('preservation-probe'),await new Promise((resolve,reject)=>{const r=indexedDB.open('v3-preservation-probe');r.onerror=()=>reject(r.error);r.onsuccess=()=>{const db=r.result,q=db.transaction('records').objectStore('records').get('record');q.onsuccess=()=>{db.close();resolve(q.result);};};})]);
-    assert.deepEqual(await unchanged(),['unchanged','unchanged']);await swctx.setOffline(true);await p.reload();assert.equal(await p.locator('meta[name="health-app-version"]').getAttribute('content'),'2.8.2');assert.deepEqual(await unchanged(),['unchanged','unchanged']);await swctx.close();
+    assert.deepEqual(await unchanged(),['unchanged','unchanged']);await swctx.setOffline(true);await p.reload();assert.equal(await p.locator('meta[name="health-app-version"]').getAttribute('content'),'2.8.3');assert.deepEqual(await unchanged(),['unchanged','unchanged']);await swctx.close();
   });
 })().catch(e=>{results.push({id:'HARNESS',status:'FAIL',error:e.message});}).finally(async()=>{
   await browser?.close();server?.close();const report={date:new Date().toISOString(),realDataWrites:0,results,pass:results.filter(x=>x.status==='PASS').length,fail:results.filter(x=>x.status==='FAIL').length};fs.writeFileSync(path.join(out,'preservation-results.json'),JSON.stringify(report,null,2));console.log(JSON.stringify({pass:report.pass,fail:report.fail}));process.exitCode=report.fail?1:0;

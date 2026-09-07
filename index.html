@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0F9D6C">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>健康追踪</title>
-<meta name="health-app-version" content="2.8.2">
+<meta name="health-app-version" content="2.8.3">
 <style>
 :root{
   --p:#10B981; --p-d:#059669; --p-dd:#047857; --p-l:#ECFDF5;
@@ -440,6 +440,7 @@ canvas.chart{width:100%; height:auto; display:block;}
       <label class="f">Fine-grained Token</label><input id="ghToken" type="password" placeholder="github_pat_...">
       <label class="f">数据文件名（多人共用仓库时各用自己的，如 zhang.json）</label><input id="ghPath" placeholder="data.json">
       <button class="btn ghost" style="margin-top:14px;" onclick="doSync()">立即同步</button>
+      <div class="hint" id="settingsSyncState" role="status" style="margin-top:8px;">本地模式</div>
       <div class="hint" style="margin-top:10px;">配置后每次记录自动后台同步；"待估算"的食物同步后由电脑端 Claude 补全并自动回填。</div>
     </div>
     <div class="card">
@@ -786,8 +787,8 @@ function load(){
   d.days=d.days||{}; d.weights=d.weights||[]; d.pending=d.pending||[]; d.recent=d.recent||[];
   restoreDeviceSettings(d);
   d.settings=d.settings||{};
-  d.settings.github={owner:'',repo:'',path:'data.json',token:'',...d.settings.github};
-  for(const k of ['ai','aiVision','aiVoice']) d.settings[k]={base:'',key:'',model:'',...d.settings[k]};
+  d.settings.github={owner:'joechongchzh',repo:'health-data',path:'data.json',token:'',...d.settings.github};
+  for(const k of ['ai','aiVision','aiVoice']) d.settings[k]={base:'',key:'',model:'',...(!d.settings[k]&&k==='ai'?{base:'https://api.deepseek.com',model:'deepseek-v4-flash'}:{}),...d.settings[k]};
   d.aiChat=d.aiChat||[]; d.suppDefs=d.suppDefs||JSON.parse(JSON.stringify(DEFAULT_SUPPS));
   d.customEx=d.customEx||{};
   d.split=d.split||SPLIT_PRESETS.four.days.map(x=>({key:x.key,name:x.name,ex:[...x.ex]}));
@@ -870,6 +871,7 @@ function save(settingsChanged=false){
 }
 function publicData(){
   const data=JSON.parse(JSON.stringify(D)); delete data.aiChat;delete data.settingsUpdatedAt;
+  delete data.syncBaseDays;delete data.lastSync;
   if(data.settings){
     if(data.settings.github) delete data.settings.github.token;
     for(const k of ['ai','aiVision','aiVoice']) if(data.settings[k]) delete data.settings[k].key;
@@ -880,7 +882,8 @@ function todayStr(){ const t=new Date(); return t.getFullYear()+'-'+String(t.get
 function dateOffset(ds, n){ const t=new Date(ds); t.setDate(t.getDate()+n); return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); }
 function getDay(ds){
   ds = ds || todayStr();
-  if(!D.days[ds]) D.days[ds] = {type:'rest', trainTime:'evening', meals:{breakfast:[],lunch:[],dinner:[],snack:[]}, supps:{}, workouts:[], updatedAt:Date.now()};
+  // Viewing an empty day is not an edit; touch() timestamps actual user changes.
+  if(!D.days[ds]) D.days[ds] = {type:'rest', trainTime:'evening', meals:{breakfast:[],lunch:[],dinner:[],snack:[]}, supps:{}, workouts:[], updatedAt:0};
   return D.days[ds];
 }
 function touch(ds){ getDay(ds).updatedAt = Date.now(); save(); }
@@ -1660,7 +1663,7 @@ function aiExec(a){
   }
   if(a.type==='log_weight'){
     D.weights = D.weights.filter(w=>w.d!==ds);
-    D.weights.push({d:ds, kg:+a.kg});
+    D.weights.push({d:ds, kg:+a.kg, updatedAt:Date.now()});
     D.weights.sort((x,y)=>x.d<y.d?-1:1);
     D.profile.weight = D.weights[D.weights.length-1].kg;
     return `已记录体重 ${a.kg}kg`;
@@ -2190,7 +2193,7 @@ function addWeight(){
   if(!v || v<40 || v>200){ toast('输入一个正常的体重'); return; }
   const ds = todayStr();
   D.weights = D.weights.filter(w=>w.d!==ds);
-  D.weights.push({d:ds, kg:v});
+  D.weights.push({d:ds, kg:v, updatedAt:Date.now()});
   D.weights.sort((a,b)=>a.d<b.d?-1:1);
   D.profile.weight = v;
   save(); renderTrend(); renderToday(); autoSync();
@@ -2465,8 +2468,18 @@ function ghConfigured(){ const g=D.settings.github; return g.owner && g.repo && 
 function setSyncState(txt, cls){
   const el = document.getElementById('syncState');
   el.textContent = txt; el.className = 'sync '+(cls||'');
+  document.getElementById('settingsSyncState').textContent=txt;
 }
-let syncTimer = null, syncBusy = false, syncAgain = false;
+let syncTimer = null, syncBusy = false, syncAgain = false, syncStarted=0, syncConflicts=0;
+function syncComparable(data){
+  const copy={...data};for(const key of ['settings','settingsUpdatedAt','lastSync','aiChat','syncBaseDays','recent'])delete copy[key];
+  return stableJson(copy);
+}
+function syncWhenActive(){
+  if(document.visibilityState!=='visible'||!ghConfigured()||syncBusy||Date.now()-syncStarted<3000)return;
+  if(document.activeElement?.matches('input,textarea,select')||document.querySelector('.sheet.show'))return;
+  doSync(true);
+}
 function autoSync(){
   if(!ghConfigured()) return;
   clearTimeout(syncTimer);
@@ -2481,15 +2494,17 @@ async function doSync(silent){
   if(!ghConfigured()){ if(!silent) toast('先填写 GitHub 配置'); return; }
   if(syncBusy){ syncAgain = true; return; }  // 已在同步：标记结束后再跑一轮，避免并发409
   syncBusy = true;
+  syncStarted=Date.now();syncConflicts=0;
   setSyncState('同步中…');
   const url = `https://api.github.com/repos/${g.owner}/${g.repo}/contents/${g.path||'data.json'}`;
   const hdr = {'Authorization':'Bearer '+g.token, 'Accept':'application/vnd.github+json'};
+  let remoteContent=null, submitted=null;
   try{
     const pull = async () => {
-      const getRes = await fetch(url, {headers:hdr});
+      const getRes = await fetch(url, {headers:hdr,cache:'no-store'});
       if(getRes.status===200){
         const j = await getRes.json();
-        mergeData(JSON.parse(b64decode(j.content)));
+        const remote=JSON.parse(b64decode(j.content));remoteContent=syncComparable(remote);mergeData(remote);
         return j.sha;
       }
       if(getRes.status===404) return null;
@@ -2497,7 +2512,9 @@ async function doSync(silent){
     };
     const push = async (sha) => {
       // aiChat 仅本地：聊天记录（含图片缩略图）不进同步仓库
-      const body = {message:'sync '+new Date().toISOString(), content:b64encode(JSON.stringify(publicData(),null,1))};
+      submitted=publicData();
+      if(sha && remoteContent===syncComparable(submitted))return {ok:true,status:200};
+      const body = {message:'sync '+new Date().toISOString(), content:b64encode(JSON.stringify(submitted,null,1))};
       if(sha) body.sha = sha;
       return fetch(url, {method:'PUT', headers:hdr, body:JSON.stringify(body)});
     };
@@ -2509,11 +2526,13 @@ async function doSync(silent){
       putRes = await push(sha);
     }
     if(!putRes.ok) throw new Error('推送失败 HTTP '+putRes.status);
-    D.lastSync = Date.now(); save();
-    setSyncState('✓ ' + new Date().toTimeString().slice(0,5) + ' 已同步');
-    renderAll();
+    D.syncBaseDays=JSON.parse(JSON.stringify(submitted.days));D.lastSync = Date.now(); save();
+    setSyncState('✓ ' + new Date().toTimeString().slice(0,5) + ' 已同步'+(syncConflicts?'（同项冲突，旧版本已保留）':''));
+    // A background response must not replace an in-progress form.
+    if(!document.activeElement?.matches('input,textarea,select')&&!document.querySelector('.sheet.show'))renderAll();
+    else {renderToday();renderTrend();}
   }catch(e){
-    setSyncState('同步失败', 'err');
+    setSyncState('同步失败：'+e.message, 'err');
     if(!silent) toast('同步失败：'+e.message+'，数据保存在本地');
   }finally{
     syncBusy = false;
@@ -2525,6 +2544,22 @@ function mergeData(remote){
   const before=JSON.parse(JSON.stringify(D));
   try{ mergeDataChecked(remote); }
   catch(e){ D=before; throw e; }
+}
+function mergeDayFields(local,remote,base){
+  const remoteNewer=(remote.updatedAt||0)>(local.updatedAt||0),result=JSON.parse(JSON.stringify(remoteNewer?remote:local));
+  const choose=(l,r,b)=>{
+    if(stableJson(l)===stableJson(r))return l;
+    if(stableJson(l)===stableJson(b))return r;
+    if(stableJson(r)===stableJson(b))return l;
+    syncConflicts++;return remoteNewer?r:l;
+  };
+  for(const key of ['type','trainTime','workouts'])result[key]=choose(local[key],remote[key],base[key]);
+  for(const key of ['meals','supps']){
+    result[key]={};for(const field of new Set([...Object.keys(local[key]||{}),...Object.keys(remote[key]||{}),...Object.keys(base[key]||{})])){
+      const value=choose(local[key]?.[field],remote[key]?.[field],base[key]?.[field]);if(value!==undefined)result[key][field]=value;
+    }
+  }
+  result.updatedAt=Math.max(local.updatedAt||0,remote.updatedAt||0);return result;
 }
 function mergeDataChecked(remote){
   if(!remote || typeof remote!=='object'||Array.isArray(remote))throw new Error('同步数据格式无效');
@@ -2549,9 +2584,10 @@ function mergeDataChecked(remote){
     const newer=(rd.updatedAt||0)>(ld.updatedAt||0);
     const copy={date:ds,day:newer?ld:rd};
     if(!D.dayHistory.some(x=>stableJson(x)===stableJson(copy)))D.dayHistory.push(JSON.parse(JSON.stringify(copy)));
-    if(newer)D.days[ds]=JSON.parse(JSON.stringify(rd));
+    if(D.syncBaseDays?.[ds])D.days[ds]=mergeDayFields(ld,rd,D.syncBaseDays[ds]);
+    else if(newer)D.days[ds]=JSON.parse(JSON.stringify(rd));
   }
-  const wmap=new Map();for(const w of [...(remote.weights||[]),...D.weights])wmap.set(w.d,w);
+  const wmap=new Map();for(const w of [...(remote.weights||[]),...D.weights]){const prev=wmap.get(w.d);if(!prev||(w.updatedAt||0)>=(prev.updatedAt||0))wmap.set(w.d,w);}
   D.weights=[...wmap.values()].sort((a,b)=>a.d.localeCompare(b.d));if(D.weights.length)D.profile.weight=D.weights.at(-1).kg;
   mergeLibrary(remote,'foods','removedFoods');mergeLibrary(remote,'combos','removedCombos');
   const pmap=new Map();for(const p of [...(remote.pending||[]),...D.pending])pmap.set(p.id,p);
@@ -2584,6 +2620,11 @@ document.querySelectorAll('.nav button').forEach(btn=>{
 function renderAll(){ renderToday(); renderTrain(); renderTrend(); renderSet(); renderAiPage(); }
 renderAll();
 if(ghConfigured()) doSync(true);
+document.addEventListener('visibilitychange',syncWhenActive);
+window.addEventListener('focus',syncWhenActive);
+window.addEventListener('online',syncWhenActive);
+window.addEventListener('pageshow',e=>{if(e.persisted)syncWhenActive();});
+setInterval(syncWhenActive,30000);
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
   navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 }
