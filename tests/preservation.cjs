@@ -43,8 +43,8 @@ async function check(id,name,fn){try{await fn();results.push({id,name,status:'PA
   await check('P08','删除库后编辑历史餐次仍使用当时的份量快照',async()=>{
     await reset();assert.equal(await page.evaluate(f=>{D.foods=[f];getDay().meals.lunch=[commitItem(f,2,'gram')];deleteLibraryEntry('foods',f.name);editFood('lunch',0);confirmAddFood();return getDay().meals.lunch[0].c;},food),20);
   });
-  await check('P09','不同时点日记录合并保留被覆盖的完整日快照',async()=>{
-    await reset();assert.equal(await page.evaluate(()=>{const d=getDay();d.updatedAt=100;d.meals.lunch=[{name:'旧记录',c:1,p:2,f:3}];const rd=JSON.parse(JSON.stringify(d));rd.updatedAt=200;rd.meals.lunch=[];mergeData({days:{[todayStr()]:rd}});return D.dayHistory.some(x=>x.day.meals.lunch[0]?.name==='旧记录')&&getDay().meals.lunch.length===0;}),true);
+  await check('P09','用户明确删除的日记录合并保留被覆盖的完整日快照',async()=>{
+    await reset();assert.equal(await page.evaluate(()=>{const d=getDay();d.updatedAt=100;d.meals.lunch=[{name:'旧记录',c:1,p:2,f:3}];const rd=JSON.parse(JSON.stringify(d));rd.updatedAt=200;rd.meals.lunch=[];rd.mealCleared={lunch:true};mergeData({days:{[todayStr()]:rd}});return D.dayHistory.some(x=>x.day.meals.lunch[0]?.name==='旧记录')&&getDay().meals.lunch.length===0;}),true);
   });
   await check('P10','非法云端JSON时同步不推送且原本地记录保留',async()=>{
     await reset();assert.deepEqual(await page.evaluate(async f=>{D.foods=[f];D.settings.github={owner:'fixture',repo:'fixture',path:'data.json',token:'synthetic'};save(true);renderSet();let gets=0,puts=0;window.fetch=async(u,o={})=>{if(o.method==='PUT'){puts++;return new Response('{}');}gets++;return new Response(JSON.stringify({sha:'fixture',content:b64encode('invalid json')}));};await doSync(true);return [gets,puts,D.foods[0].c];},food),[1,0,10]);await page.reload();
@@ -85,9 +85,9 @@ async function check(id,name,fn){try{await fn();results.push({id,name,status:'PA
       const changed=new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',()=>{if(navigator.serviceWorker.controller!==old)resolve();},{once:true}));
       const r=await navigator.serviceWorker.getRegistration();await r.update();await changed;
     });
-    await p.reload();assert.equal(await p.locator('meta[name="health-app-version"]').getAttribute('content'),'2.8.3');
+    await p.reload();assert.equal(await p.locator('meta[name="health-app-version"]').getAttribute('content'),'2.8.4');
     const unchanged=()=>p.evaluate(async()=>[localStorage.getItem('preservation-probe'),await new Promise((resolve,reject)=>{const r=indexedDB.open('v3-preservation-probe');r.onerror=()=>reject(r.error);r.onsuccess=()=>{const db=r.result,q=db.transaction('records').objectStore('records').get('record');q.onsuccess=()=>{db.close();resolve(q.result);};};})]);
-    assert.deepEqual(await unchanged(),['unchanged','unchanged']);await swctx.setOffline(true);await p.reload();assert.equal(await p.locator('meta[name="health-app-version"]').getAttribute('content'),'2.8.3');assert.deepEqual(await unchanged(),['unchanged','unchanged']);await swctx.close();
+    assert.deepEqual(await unchanged(),['unchanged','unchanged']);await swctx.setOffline(true);await p.reload();assert.equal(await p.locator('meta[name="health-app-version"]').getAttribute('content'),'2.8.4');assert.deepEqual(await unchanged(),['unchanged','unchanged']);await swctx.close();
   });
 })().catch(e=>{results.push({id:'HARNESS',status:'FAIL',error:e.message});}).finally(async()=>{
   await browser?.close();server?.close();const report={date:new Date().toISOString(),realDataWrites:0,results,pass:results.filter(x=>x.status==='PASS').length,fail:results.filter(x=>x.status==='FAIL').length};fs.writeFileSync(path.join(out,'preservation-results.json'),JSON.stringify(report,null,2));console.log(JSON.stringify({pass:report.pass,fail:report.fail}));process.exitCode=report.fail?1:0;
