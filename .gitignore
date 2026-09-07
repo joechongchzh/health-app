@@ -1,11 +1,7 @@
-node_modules/
-dist/
-coverage/
-playwright-report/
+.ci-deps/
 test-results/
-.env
-.env.local
-.DS_Store
-*.log
-*.tsbuildinfo
-.supabase/
+node_modules/
+data.json
+.env*
+_private_backups/
+_归档/
