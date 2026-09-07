@@ -1,9 +1,11 @@
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)];
-assert.equal(scripts.length,1,'The app must remain one inline script');
-for(const [,js]of scripts)new vm.Script(js,{filename:'index.html'});
+// This is a source-format assertion, not an HTML sanitizer.
+const start=html.indexOf('<script>'),end=html.indexOf('</script>',start);
+assert.ok(start>=0&&end>start,'Expected the single inline script');
+assert.equal(html.indexOf('<script>',start+8),-1,'The app must remain one inline script');
+new vm.Script(html.slice(start+8,end),{filename:'index.html'});
 new vm.Script(fs.readFileSync(path.join(root,'sw.js'),'utf8'),{filename:'sw.js'});
 assert.ok(html.includes('name="health-app-version" content="2.8.0"'));
 assert.ok(!/<script[^>]+src=/.test(html),'No external runtime scripts');
