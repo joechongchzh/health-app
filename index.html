@@ -788,7 +788,7 @@ function load(){
   restoreDeviceSettings(d);
   d.settings=d.settings||{};
   d.settings.github={owner:'joechongchzh',repo:'health-data',path:'data.json',token:'',...d.settings.github};
-  for(const k of ['ai','aiVision','aiVoice']) d.settings[k]={base:'',key:'',model:'',...d.settings[k]};
+  for(const k of ['ai','aiVision','aiVoice']) d.settings[k]={base:'',key:'',model:'',...(!d.settings[k]&&k==='ai'?{base:'https://api.deepseek.com',model:'deepseek-v4-flash'}:{}),...d.settings[k]};
   d.aiChat=d.aiChat||[]; d.suppDefs=d.suppDefs||JSON.parse(JSON.stringify(DEFAULT_SUPPS));
   d.customEx=d.customEx||{};
   d.split=d.split||SPLIT_PRESETS.four.days.map(x=>({key:x.key,name:x.name,ex:[...x.ex]}));

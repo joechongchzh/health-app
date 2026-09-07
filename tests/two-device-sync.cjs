@@ -19,6 +19,7 @@ async function record(p,meal,name){await p.evaluate(({meal,name})=>{getDay().mea
 (async()=>{
   fs.mkdirSync(out,{recursive:true});server=http.createServer((q,s)=>{s.setHeader('Content-Type','text/html;charset=utf-8');s.end(fs.readFileSync(path.resolve(__dirname,'../index.html')));});await new Promise(r=>server.listen(0,'127.0.0.1',r));origin=`http://127.0.0.1:${server.address().port}`;
   browser=await chromium.launch({channel:process.platform==='win32'?'msedge':undefined,headless:true});const pc=await device(),phone=await device();
+  await check('新安装预填模型参数但不包含密钥',async()=>{assert.deepEqual(await pc.evaluate(()=>D.settings.ai),{base:'https://api.deepseek.com',key:'',model:'deepseek-v4-flash'});});
   await check('电脑录入后手机首次同步获得同一份饮食',async()=>{await record(pc,'breakfast','电脑早餐');await sync(pc);await sync(phone);assert.equal((await counts(phone)).breakfast,1);assert.equal(remote.days[await phone.evaluate(()=>todayStr())].meals.breakfast.length,1);});
   await check('手机修改后电脑重新拉取获得更新',async()=>{await record(phone,'lunch','手机午餐');await sync(phone);await sync(pc);assert.equal((await counts(pc)).lunch,1);assert.deepEqual(await counts(pc),await counts(phone));});
   await check('两端离线修改不同餐次，合并后均保留',async()=>{await record(pc,'dinner','电脑晚餐');await record(phone,'snack','手机加餐');await sync(pc);await sync(phone);await sync(pc);assert.deepEqual(await counts(pc),{breakfast:1,lunch:1,dinner:1,snack:1});assert.deepEqual(await counts(pc),await counts(phone));});
