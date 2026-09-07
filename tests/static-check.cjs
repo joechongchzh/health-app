@@ -1,0 +1,12 @@
+const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..');
+const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)];
+assert.equal(scripts.length,1,'The app must remain one inline script');
+for(const [,js]of scripts)new vm.Script(js,{filename:'index.html'});
+new vm.Script(fs.readFileSync(path.join(root,'sw.js'),'utf8'),{filename:'sw.js'});
+assert.ok(html.includes('name="health-app-version" content="2.8.0"'));
+assert.ok(!/<script[^>]+src=/.test(html),'No external runtime scripts');
+assert.ok(!/from\s+['"](?:react|@supabase)/.test(html));
+assert.ok(!/(?:ghp_|github_pat_)[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9]{20,}/.test(html),'No credential literals');
+console.log('PASS: inline JavaScript syntax, worker syntax, static architecture, version and credential-literal checks');

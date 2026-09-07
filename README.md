@@ -1,115 +1,41 @@
-# 健康追踪 v3
+# 健康追踪 · v2.8.0
 
-一个面向成年人日常健康管理的开源 PWA，支持饮食、训练、体重趋势、补剂打卡、AI 辅助、离线记录与多设备同步。界面针对手机设计，可安装到 iPhone 和 Android 主屏幕。
+自用健康记录工具。HTML、CSS、JavaScript 全部放在 `index.html`，直接打开即可运行。`sw.js` 只提供静态页面离线缓存；没有前后端分离、React 构建或 Supabase 运行依赖。
 
-在线地址：[https://joechongchzh.github.io/health-app/](https://joechongchzh.github.io/health-app/)
+线上地址：[健康 App](https://joechongchzh.github.io/health-app/)。
 
-![健康追踪移动端界面预览](docs/images/home-preview.svg)
+## 本次修复
 
-> 本项目不提供医学诊断、处方或特殊人群治疗建议。出现不适或异常指标请咨询医生。
+- 保留已有食物、自定义训练方案和历史记录；移除每次启动重建食物库的旧迁移逻辑。
+- 食物和套餐删除后进入回收站；修正前、同步冲突前的完整条目也保留。恢复生成新版本，旧删除标记不会反复删除恢复后的条目。
+- 同名食物按版本时间合并；历史餐次及套餐保留当时的营养快照，不被食物库修改悄悄追改。
+- AI 使用完整的库内份量和营养基准，按实际克重计算；新增、更新、删除均经过校验与确认。确认前数据变化会重新计算并要求核对。
+- GitHub 同步和普通导出不含模型密钥、GitHub 令牌或 AI 聊天；设备上的配置仍保留。
 
-## 功能
+## 数据保存
 
-- 五栏移动端界面：今日、饮食、训练、AI、我的
-- 按档案和日型动态计算营养配额，女性 BMR 使用正确的 Mifflin-St Jeor 公式
-- IndexedDB 本地优先；离线增删改、恢复联网与前台时自动同步
-- Supabase 邮箱 magic link 登录、邀请码注册、RLS 账号隔离
-- 条目级 UUID、版本、软删除和冲突处理，避免整天 JSON 相互覆盖
-- 旧版 `ht_data_v1` 预览、备份、幂等迁移；v3 JSON 导入导出
-- AI 文字、视觉、语音接口分别配置，兼容 HTTPS OpenAI 风格接口
-- AI Key 仅保存在当前设备，不同步、不导出
-- PWA 离线缓存、Apple Touch Icon 和新版本更新提示
+浏览器 `localStorage` 的 `ht_data_v1` 是本地数据。数据结构版本为 `ver:6`，与应用版本号不同。旧数据首次升级前，将原 JSON 原样保存在同一浏览器的 `ht_backup_before_v6`；如果保存备份失败，停止升级。请勿通过清除浏览器数据处理版本切换。
 
-## 隐私模型
+GitHub JSON 同步可选，配置数据仓库和令牌后使用。导入与同步合并数据；不从导入文件覆盖本机凭据。新设备需自行填写模型密钥和同步令牌。
 
-- 传输使用 HTTPS；云端使用 Supabase RLS 按 `user_id` 隔离。
-- 不提供端到端加密，Supabase 项目管理员理论上可以访问云端明文健康数据。
-- AI Key、AI 对话、图片缩略图、GitHub Token 不进入云同步、JSON 导出或错误日志。
-- 删除账号会通过受保护的 Edge Function 删除 Auth 用户并级联清理云端数据，同时清除本地数据库和本机 AI Key。
+删除记录和覆盖前版本可在食物选择面板的“回收站”恢复。日记录发生同步冲突时，落选日快照保存在导出数据的 `dayHistory`，不自动重放到当天。旧食物库的有时间删除标记仅用于兼容合并；不再强制补回所谓白名单食物。
 
-详见 [隐私说明](docs/PRIVACY.md) 和 [数据库设计](docs/DATABASE.md)。
+此前的复杂架构 v3 停止开发。本仓库 Git 历史保留切换前的全部提交；本次发布不删除或迁移原 Supabase / IndexedDB 数据。它们与本工具的 JSON 数据属于不同存储，不能宣称自动互通。
 
-## 本地开发
+## 验证与发布
 
-要求 Node.js 22+、pnpm 11.19.0。云端功能需要 Supabase CLI 与 Docker。
+运行界面没有第三方依赖。`tests/` 和 `.github/` 仅供开发验证：
 
-```bash
-pnpm install
-cp .env.example .env.local
-pnpm dev
+```sh
+node tests/static-check.cjs
+npm install --prefix .ci-deps --no-save --package-lock=false playwright@1.62.1
+node .ci-deps/node_modules/playwright/cli.js install chromium
+HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/legacy-regression.cjs
+HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/preservation.cjs
 ```
 
-未配置 Supabase 时，开发环境会显示“本地开发预览”，便于调试 UI；生产构建不会开放该入口。
+Windows 可将 `HEALTH_TEST_NODE_MODULES` 指向已有 Playwright 运行时；测试使用本机 Edge。CI 使用 Chromium。全部测试在独立浏览器上下文中执行，外部健康数据写入被阻止。
 
-常用命令：
+主分支保留 `quality`、`database`、`e2e`、`secret-scan`、`analyze` 五项必需检查；其中 `database` 验证本地数据升级、合并、回收站与缓存切换。通过 PR 检查后合并，主分支 CI 成功才发布。Pages 产物只包含 `index.html`、`sw.js`、`.nojekyll`，不包含测试、个人健康文档或任何备份。
 
-```bash
-pnpm lint
-pnpm format:check
-pnpm typecheck
-pnpm test
-pnpm test:e2e
-pnpm build
-supabase start
-pnpm test:db
-```
-
-## Supabase 配置
-
-1. 创建 Supabase 项目，启用邮箱登录（magic link）。免费套餐用默认邮件服务即可，登录邮件为链接而非验证码。
-2. 将 `.env.example` 复制为 `.env.local`，填入项目 URL 和 publishable/anon key。
-3. 执行 `supabase db push`。
-4. 部署函数：
-
-   ```bash
-   supabase functions deploy redeem-invite
-   supabase functions deploy delete-account
-   ```
-
-5. 在 SQL Editor 创建邀请码（明文不会存表）：
-
-   ```sql
-   insert into public.invite_codes(code_hash, label, max_uses, expires_at)
-   values (crypt('替换为邀请码', gen_salt('bf')), '朋友', 10, now() + interval '30 days');
-   ```
-
-6. 在 GitHub 仓库 Variables 配置 `VITE_SUPABASE_URL`、`VITE_SUPABASE_PUBLISHABLE_KEY`。
-
-Service Role Key 只由 Supabase Edge Function 环境使用，绝不能放入 `.env.local`、GitHub Pages 或前端构建。
-
-## 部署与自托管
-
-仓库默认以 `/health-app/` 为 base path，通过 GitHub Actions 部署 GitHub Pages。自托管到根路径时修改 `vite.config.ts` 的 `base`、manifest 的 `start_url/scope` 和 `index.html` 中图标路径。
-
-完整步骤见 [部署文档](docs/DEPLOYMENT.md)。
-
-## 旧版迁移
-
-首次登录后如果检测到 `ht_data_v1`，应用会显示记录数量。确认迁移时先下载旧 JSON 备份，再拆分为 v3 记录；稳定 ID 确保重复导入不会产生重复记录。旧 localStorage 仅在第二次确认后删除。“我的→安装与数据”也可直接导入旧 `health-data` JSON。
-
-旧同步 JSON 中出现过的 GitHub Token 或 AI Key 必须轮换。删除仓库数据文件不能清除 Git 历史中的旧凭据。详见 [迁移文档](docs/MIGRATION.md)。
-
-## 项目文档
-
-- [架构](docs/ARCHITECTURE.md)
-- [数据库与 RLS](docs/DATABASE.md)
-- [隐私与安全](docs/PRIVACY.md)
-- [部署与发布](docs/DEPLOYMENT.md)
-- [迁移](docs/MIGRATION.md)
-- [好友使用指引](docs/FRIEND-GUIDE.md)
-- [故障排除](docs/TROUBLESHOOTING.md)
-
-## 已知限制
-
-- iOS PWA 不依赖后台同步；请偶尔打开应用，让前台同步完成。
-- AI 接口兼容性取决于服务商是否实现对应的 OpenAI 风格端点。
-- 餐馆、外卖和图片识别营养值只能作为估算。
-- 真实 iPhone Safari/主屏幕模式与 Android Chrome/安装模式仍属于每次正式发布的人工作验收项。
-
-## 参与贡献
-
-请阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 和 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。安全问题请按 [SECURITY.md](SECURITY.md) 私下报告。
-
-## License
-
-[MIT](LICENSE)
+版本更新需同时调整 HTML 版本标记与 service worker 缓存版本。真实模型的响应受外部服务影响；合成测试不替代手机 Safari / 主屏幕安装场景的实机验收。
