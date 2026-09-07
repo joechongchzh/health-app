@@ -49,6 +49,17 @@ async function same(p,expected=settings){assert.deepEqual(await p.evaluate(()=>D
     await seed(p,{...legacy,ver:6,settings:{ai:{base:'https://new.invalid'}}},{ht_backup_before_v6:legacy});
     assert.deepEqual(await p.evaluate(()=>D.settings.ai),{base:'https://new.invalid',key:'',model:''});
   });
+  await check('已有空白配置补齐仓库和对话参数并保留刚填Token',async p=>{
+    const d={...legacy,ver:6,settings:{github:{owner:'',repo:'',path:'',token:'synthetic-entered'},ai:{base:'',key:'',model:''}}};
+    await seed(p,d,{ht_settings_v1:{version:1,updatedAt:100,settings:d.settings}});
+    assert.deepEqual(await p.evaluate(()=>D.settings.github),{owner:'joechongchzh',repo:'health-data',path:'data.json',token:'synthetic-entered'});
+    assert.deepEqual(await p.evaluate(()=>D.settings.ai),{base:'https://api.deepseek.com',key:'',model:'deepseek-v4-flash'});
+    await p.reload();assert.equal(await p.locator('#aiBase').inputValue(),'https://api.deepseek.com');assert.equal(await p.locator('#ghToken').inputValue(),'synthetic-entered');
+  });
+  await check('默认值迁移后用户主动清空对话配置，刷新保持清空',async p=>{
+    await seed(p,{...legacy,ver:6,settings:{}});await p.evaluate(()=>{D.settings.ai={base:'',key:'',model:''};save(true);});await p.reload();
+    assert.deepEqual(await p.evaluate(()=>D.settings.ai),{base:'',key:'',model:''});
+  });
   await check('设置页主动修改及清空模型，刷新不复活旧值',async p=>{
     await seed(p);await p.locator('[data-page="set"]').click();
     await p.locator('#aiKey').fill('synthetic-manual');await p.locator('#viBase').fill('');await p.locator('#viKey').fill('');await p.locator('#viModel').fill('');

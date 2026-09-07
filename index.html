@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0F9D6C">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>健康追踪</title>
-<meta name="health-app-version" content="2.8.3">
+<meta name="health-app-version" content="2.8.4">
 <style>
 :root{
   --p:#10B981; --p-d:#059669; --p-dd:#047857; --p-l:#ECFDF5;
@@ -441,6 +441,7 @@ canvas.chart{width:100%; height:auto; display:block;}
       <label class="f">数据文件名（多人共用仓库时各用自己的，如 zhang.json）</label><input id="ghPath" placeholder="data.json">
       <button class="btn ghost" style="margin-top:14px;" onclick="doSync()">立即同步</button>
       <div class="hint" id="settingsSyncState" role="status" style="margin-top:8px;">本地模式</div>
+      <div class="hint" style="margin-top:8px;">当前版本 <span id="appVersion"></span><span id="appUpdate" hidden> · 新版本已就绪，保存正在填写的内容后 <button class="btn sm ghost" onclick="location.reload()">更新页面</button></span></div>
       <div class="hint" style="margin-top:10px;">配置后每次记录自动后台同步；"待估算"的食物同步后由电脑端 Claude 补全并自动回填。</div>
     </div>
     <div class="card">
@@ -789,6 +790,12 @@ function load(){
   d.settings=d.settings||{};
   d.settings.github={owner:'joechongchzh',repo:'health-data',path:'data.json',token:'',...d.settings.github};
   for(const k of ['ai','aiVision','aiVoice']) d.settings[k]={base:'',key:'',model:'',...(!d.settings[k]&&k==='ai'?{base:'https://api.deepseek.com',model:'deepseek-v4-flash'}:{}),...d.settings[k]};
+  // Fill legacy blank defaults once; never replace a provider, model or credential.
+  if(!localStorage.getItem('ht_defaults_v1')){
+    for(const [k,v] of Object.entries({owner:'joechongchzh',repo:'health-data',path:'data.json'}))if(!d.settings.github[k])d.settings.github[k]=v;
+    const ai=d.settings.ai;
+    if(!ai.base&&!ai.model&&!ai.key)Object.assign(ai,{base:'https://api.deepseek.com',model:'deepseek-v4-flash'});
+  }
   d.aiChat=d.aiChat||[]; d.suppDefs=d.suppDefs||JSON.parse(JSON.stringify(DEFAULT_SUPPS));
   d.customEx=d.customEx||{};
   d.split=d.split||SPLIT_PRESETS.four.days.map(x=>({key:x.key,name:x.name,ex:[...x.ex]}));
@@ -815,7 +822,7 @@ function load(){
     if(deleted && entryTime(f)<=deleted.ts) f.updatedAt=deleted.ts+1;
   }
   d.ver=6;
-  try{persistDeviceSettings(d);}catch(e){alert('无法保存配置备份，启动已停止；原数据未清除，请先备份并释放存储空间。');throw e;}
+  try{persistDeviceSettings(d);localStorage.setItem('ht_defaults_v1','1');}catch(e){alert('无法保存配置备份，启动已停止；原数据未清除，请先备份并释放存储空间。');throw e;}
   return d;
 }
 function tombNorm(arr){ return (Array.isArray(arr)?arr:[]).map(t=>typeof t==='string'?{n:t,ts:0}:t).filter(t=>t && typeof t.n==='string' && Number.isFinite(Number(t.ts))).map(t=>({n:t.n,ts:Math.max(0,Number(t.ts))})); }
@@ -886,7 +893,13 @@ function getDay(ds){
   if(!D.days[ds]) D.days[ds] = {type:'rest', trainTime:'evening', meals:{breakfast:[],lunch:[],dinner:[],snack:[]}, supps:{}, workouts:[], updatedAt:0};
   return D.days[ds];
 }
-function touch(ds){ getDay(ds).updatedAt = Date.now(); save(); }
+function touch(ds){
+  ds=ds||todayStr();const day=getDay(ds),before=JSON.parse(localStorage.getItem(LS_KEY)||'{}').days?.[ds];
+  day.updatedAt=Math.max(Date.now(),day.updatedAt||0)+1;
+  day.mealCleared=day.mealCleared||{};
+  for(const [meal,items] of Object.entries(day.meals))if(stableJson(items)!==stableJson(before?.meals?.[meal]||[]))day.mealCleared[meal]=items.length===0;
+  save();
+}
 function toast(msg, action){
   const t = document.getElementById('toast');
   document.getElementById('toastMsg').textContent = msg;
@@ -2527,7 +2540,8 @@ async function doSync(silent){
     }
     if(!putRes.ok) throw new Error('推送失败 HTTP '+putRes.status);
     D.syncBaseDays=JSON.parse(JSON.stringify(submitted.days));D.lastSync = Date.now(); save();
-    setSyncState('✓ ' + new Date().toTimeString().slice(0,5) + ' 已同步'+(syncConflicts?'（同项冲突，旧版本已保留）':''));
+    const count=Object.values(submitted.days[todayStr()]?.meals||{}).reduce((n,items)=>n+items.length,0);
+    setSyncState('✓ ' + new Date().toTimeString().slice(0,5) + ' 已同步 · 今天 '+count+' 条饮食'+(syncConflicts?'（冲突已保护，旧版本已保留）':''));
     // A background response must not replace an in-progress form.
     if(!document.activeElement?.matches('input,textarea,select')&&!document.querySelector('.sheet.show'))renderAll();
     else {renderToday();renderTrend();}
@@ -2555,8 +2569,10 @@ function mergeDayFields(local,remote,base){
   };
   for(const key of ['type','trainTime','workouts'])result[key]=choose(local[key],remote[key],base[key]);
   for(const key of ['meals','supps']){
+    if(key==='meals')result.mealCleared={};
     result[key]={};for(const field of new Set([...Object.keys(local[key]||{}),...Object.keys(remote[key]||{}),...Object.keys(base[key]||{})])){
       const value=choose(local[key]?.[field],remote[key]?.[field],base[key]?.[field]);if(value!==undefined)result[key][field]=value;
+      if(key==='meals')result.mealCleared[field]=!!(stableJson(value)===stableJson(local.meals?.[field])?local:remote).mealCleared?.[field];
     }
   }
   result.updatedAt=Math.max(local.updatedAt||0,remote.updatedAt||0);return result;
@@ -2586,6 +2602,21 @@ function mergeDataChecked(remote){
     if(!D.dayHistory.some(x=>stableJson(x)===stableJson(copy)))D.dayHistory.push(JSON.parse(JSON.stringify(copy)));
     if(D.syncBaseDays?.[ds])D.days[ds]=mergeDayFields(ld,rd,D.syncBaseDays[ds]);
     else if(newer)D.days[ds]=JSON.parse(JSON.stringify(rd));
+    // Old clients created timestamped empty meals simply by opening the page.
+    // Only an explicitly edited meal may delete entries during synchronization.
+    const merged=JSON.parse(JSON.stringify(D.days[ds]));let protectedMeals=false;
+    for(const other of [ld,rd])for(const [meal,items] of Object.entries(other.meals)){
+      if(items.length && !merged.meals[meal]?.length && !merged.mealCleared?.[meal]){
+        merged.meals[meal]=JSON.parse(JSON.stringify(items));
+        merged.mealCleared={...merged.mealCleared,[meal]:false};
+        protectedMeals=true;
+      }
+    }
+    if(protectedMeals){
+      syncConflicts++;merged.updatedAt=Math.max(Date.now(),ld.updatedAt||0,rd.updatedAt||0)+1;
+      for(const day of [ld,rd]){const snapshot={date:ds,day};if(!D.dayHistory.some(x=>stableJson(x)===stableJson(snapshot)))D.dayHistory.push(JSON.parse(JSON.stringify(snapshot)));}
+    }
+    D.days[ds]=merged;
   }
   const wmap=new Map();for(const w of [...(remote.weights||[]),...D.weights]){const prev=wmap.get(w.d);if(!prev||(w.updatedAt||0)>=(prev.updatedAt||0))wmap.set(w.d,w);}
   D.weights=[...wmap.values()].sort((a,b)=>a.d.localeCompare(b.d));if(D.weights.length)D.profile.weight=D.weights.at(-1).kg;
@@ -2626,6 +2657,11 @@ window.addEventListener('online',syncWhenActive);
 window.addEventListener('pageshow',e=>{if(e.persisted)syncWhenActive();});
 setInterval(syncWhenActive,30000);
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+  const version=document.querySelector('meta[name="health-app-version"]').content;
+  document.getElementById('appVersion').textContent='v'+version;
+  navigator.serviceWorker.addEventListener('message',e=>{
+    if(e.data?.type==='HEALTH_APP_UPDATE'&&e.data.version!==version)document.getElementById('appUpdate').hidden=false;
+  });
   navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 }
 </script>

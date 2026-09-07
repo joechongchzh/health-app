@@ -12,7 +12,12 @@ async function sync(p,mode){return p.evaluate(async mode=>{
   const date=mode==='historical'?dateOffset(todayStr(),-1):todayStr();
   if(mode==='historical'){curDate=date;renderAll();}
   const remoteDay={type:'rest',trainTime:'evening',meals:{breakfast:[{name:'合成早餐',c:30,p:15,f:8}],lunch:[],dinner:[],snack:[]},workouts:[],supps:{},updatedAt:Date.now()-60000};
-  if(mode==='deleted'){D.days[date]=JSON.parse(JSON.stringify(remoteDay));D.days[date].meals.breakfast=[];touch(date);}
+  if(mode==='deleted'){D.days[date]=JSON.parse(JSON.stringify(remoteDay));save();D.days[date].meals.breakfast=[];touch(date);}
+  if(mode==='legacy-local-empty'){getDay(date).updatedAt=Date.now()+60000;save();}
+  if(mode==='legacy-remote-empty'){
+    D.days[date]=JSON.parse(JSON.stringify(remoteDay));D.syncBaseDays={[date]:JSON.parse(JSON.stringify(remoteDay))};save();
+    remoteDay.meals.breakfast=[];remoteDay.updatedAt=Date.now()+60000;remoteDay.mealCleared={breakfast:false};
+  }
   D.settings.github={owner:'synthetic',repo:'synthetic',path:'data.json',token:'synthetic-token'};save(true);renderSet();let pushed,gets=0;
   window.fetch=async(u,o={})=>{if(o.method==='PUT'){pushed=JSON.parse(b64decode(JSON.parse(o.body).content));return new Response('{}');}gets++;return new Response(JSON.stringify({sha:'synthetic-sha',content:b64encode(JSON.stringify({ver:6,days:{[date]:remoteDay}}))}));};
   await doSync(false);
@@ -24,4 +29,6 @@ async function sync(p,mode){return p.evaluate(async mode=>{
   await check('新设备打开今日后首次同步保留云端饮食及上传内容',async p=>{const r=await sync(p,'today');assert.equal(r.gets,1);assert.equal(r.local,1);assert.equal(r.uploaded,1);assert.match(r.status,/已同步/);await p.reload();assert.equal(await p.evaluate(()=>getDay().meals.breakfast.length),1);});
   await check('仅浏览历史日期不覆盖云端已有记录',async p=>{const r=await sync(p,'historical');assert.equal(r.local,1);assert.equal(r.uploaded,1);});
   await check('用户实际清空餐次仍可同步且原内容进入历史副本',async p=>{const r=await sync(p,'deleted');assert.equal(r.local,0);assert.equal(r.uploaded,0);assert.equal(r.history,true);});
+  await check('升级前已保存的未来时间空白日不能覆盖云端早餐',async p=>{const r=await sync(p,'legacy-local-empty');assert.equal(r.local,1);assert.equal(r.uploaded,1);assert.match(r.status,/今天 1 条饮食/);});
+  await check('云端再次被旧客户端清空时，电脑已有早餐仍保留并回传',async p=>{const r=await sync(p,'legacy-remote-empty');assert.equal(r.local,1);assert.equal(r.uploaded,1);assert.match(r.status,/冲突已保护/);});
 })().catch(e=>results.push({name:'harness',status:'FAIL',error:e.message})).finally(async()=>{await browser?.close();server?.close();const report={date:new Date().toISOString(),syntheticOnly:true,realDataWrites:0,results,pass:results.filter(x=>x.status==='PASS').length,fail:results.filter(x=>x.status==='FAIL').length};fs.writeFileSync(path.join(out,'sync-day-results.json'),JSON.stringify(report,null,2));console.log(JSON.stringify({pass:report.pass,fail:report.fail}));process.exitCode=report.fail?1:0;});

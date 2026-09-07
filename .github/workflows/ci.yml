@@ -31,6 +31,8 @@ jobs:
         run: HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/sync-day-preservation.cjs
       - name: Verify synchronization between two independent devices
         run: HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/two-device-sync.cjs
+      - name: Verify newer HTML can replace an older offline cache without losing settings
+        run: HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/cache-update.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
