@@ -27,6 +27,8 @@ jobs:
         run: HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/preservation.cjs
       - name: Verify device configuration survives updates and synchronization
         run: HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/config-preservation.cjs
+      - name: Verify viewing an empty day cannot replace remote records
+        run: HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/sync-day-preservation.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

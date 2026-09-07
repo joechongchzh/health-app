@@ -1,10 +1,10 @@
 // Static-file cache only. No health records, credentials, or API responses are cached here.
-const CACHE = 'health-single-html-2.8.2';
+const CACHE = 'health-single-html-2.8.3';
 const ROOT = new URL('./', self.location).href;
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const response = await fetch(ROOT, {cache:'reload'});
-    if(!response.ok || !(await response.clone().text()).includes('content="2.8.2"')) throw Error('New HTML not available');
+    if(!response.ok || !(await response.clone().text()).includes('content="2.8.3"')) throw Error('New HTML not available');
     await (await caches.open(CACHE)).put(ROOT,response);
     await self.skipWaiting();
   })());
@@ -22,7 +22,7 @@ self.addEventListener('fetch', event => {
   event.respondWith((async () => {
     try {
       const response=await fetch(event.request,{cache:'no-cache'});
-      if(response.ok && (await response.clone().text()).includes('content="2.8.2"')){
+      if(response.ok && (await response.clone().text()).includes('content="2.8.3"')){
         await (await caches.open(CACHE)).put(ROOT,response.clone());return response;
       }
     } catch {}

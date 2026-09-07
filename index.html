@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0F9D6C">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>健康追踪</title>
-<meta name="health-app-version" content="2.8.2">
+<meta name="health-app-version" content="2.8.3">
 <style>
 :root{
   --p:#10B981; --p-d:#059669; --p-dd:#047857; --p-l:#ECFDF5;
@@ -880,7 +880,8 @@ function todayStr(){ const t=new Date(); return t.getFullYear()+'-'+String(t.get
 function dateOffset(ds, n){ const t=new Date(ds); t.setDate(t.getDate()+n); return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); }
 function getDay(ds){
   ds = ds || todayStr();
-  if(!D.days[ds]) D.days[ds] = {type:'rest', trainTime:'evening', meals:{breakfast:[],lunch:[],dinner:[],snack:[]}, supps:{}, workouts:[], updatedAt:Date.now()};
+  // Viewing an empty day is not an edit; touch() timestamps actual user changes.
+  if(!D.days[ds]) D.days[ds] = {type:'rest', trainTime:'evening', meals:{breakfast:[],lunch:[],dinner:[],snack:[]}, supps:{}, workouts:[], updatedAt:0};
   return D.days[ds];
 }
 function touch(ds){ getDay(ds).updatedAt = Date.now(); save(); }

@@ -1,8 +1,12 @@
-# 健康追踪 · v2.8.2
+# 健康追踪 · v2.8.3
 
 自用健康记录工具。HTML、CSS、JavaScript 全部放在 `index.html`，直接打开即可运行。`sw.js` 只提供静态页面离线缓存；没有前后端分离、React 构建或 Supabase 运行依赖。
 
 线上地址：[健康 App](https://joechongchzh.github.io/health-app/)。
+
+## 首次同步保留云端当天记录（v2.8.3）
+
+仅打开今日或浏览某个日期时生成的空白日不再视为一次编辑。原来它带有当前时间，同步按整天时间戳取新时会覆盖另一设备已录入的数据。现在只有实际修改才更新时间；主动清空餐次仍然可以同步。修复后的程序不会自动恢复此前已被覆盖的数据，旧版本副本仍保留在dayHistory。
 
 ## 配置保留（v2.8.2）
 
@@ -43,6 +47,7 @@ node .ci-deps/node_modules/playwright/cli.js install chromium
 HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/legacy-regression.cjs
 HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/preservation.cjs
 HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/config-preservation.cjs
+HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/sync-day-preservation.cjs
 ```
 
 Windows 可将 `HEALTH_TEST_NODE_MODULES` 指向已有 Playwright 运行时；测试使用本机 Edge。CI 使用 Chromium。全部测试在独立浏览器上下文中执行，外部健康数据写入被阻止。
