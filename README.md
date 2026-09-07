@@ -6,6 +6,10 @@
 
 ## 首次同步保留云端当天记录（v2.8.3）
 
+打开、回到前台、恢复网络时自动同步；页面在前台且没有编辑表单时每30秒检查一次，数据未变不重复上传。两端基于上次同步副本合并不同餐次、训练和补剂打卡，同一项目同时修改按时间取新并提示冲突、保留旧日快照。体重按每条记录的更新时间合并。设置页同步状态保留详细错误，不只显示短暂提示。
+
+新安装预填自用GitHub用户名、仓库和文件名，只需填写一次Token与模型配置。凭据保持本机保存；Safari和主屏幕Web App属于不同存储环境，新安装各配置一次，数据通过同一GitHub文件互通。
+
 仅打开今日或浏览某个日期时生成的空白日不再视为一次编辑。原来它带有当前时间，同步按整天时间戳取新时会覆盖另一设备已录入的数据。现在只有实际修改才更新时间；主动清空餐次仍然可以同步。修复后的程序不会自动恢复此前已被覆盖的数据，旧版本副本仍保留在dayHistory。
 
 ## 配置保留（v2.8.2）
@@ -48,6 +52,7 @@ HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/legacy-regressi
 HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/preservation.cjs
 HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/config-preservation.cjs
 HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/sync-day-preservation.cjs
+HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/two-device-sync.cjs
 ```
 
 Windows 可将 `HEALTH_TEST_NODE_MODULES` 指向已有 Playwright 运行时；测试使用本机 Edge。CI 使用 Chromium。全部测试在独立浏览器上下文中执行，外部健康数据写入被阻止。
