@@ -25,6 +25,8 @@ jobs:
       - run: node .ci-deps/node_modules/playwright/cli.js install --with-deps chromium
       - name: Verify data migration, merge, recovery and cache transition
         run: HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/preservation.cjs
+      - name: Verify device configuration survives updates and synchronization
+        run: HEALTH_TEST_NODE_MODULES="$PWD/.ci-deps/node_modules" node tests/config-preservation.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

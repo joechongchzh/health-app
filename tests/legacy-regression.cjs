@@ -206,17 +206,17 @@ let browser, server;
     window.fetch=async()=>new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({unit:'100g',servG:100,c:-50,p:20,f:3})}}]}));await aiEstimate();return D.foods.length;
   }));
   await test('N05','GitHub同步409重拉并重推',[2,2,'sha2'],ev(async () => {
-    D.settings.github={owner:'synthetic',repo:'fixture',path:'data.json',token:'synthetic'};renderSet();let gets=0,puts=0,lastSha=null;
+    D.settings.github={owner:'synthetic',repo:'fixture',path:'data.json',token:'synthetic'};save(true);renderSet();let gets=0,puts=0,lastSha=null;
     window.fetch=async(url,opt={})=>{if(opt.method==='PUT'){puts++;lastSha=JSON.parse(opt.body).sha;return new Response('{}',{status:puts===1?409:200});}gets++;return new Response(JSON.stringify({sha:'sha'+gets,content:b64encode('{}')}));};
     await doSync(true);return [gets,puts,lastSha];
   }));
   await test('N06','同步JSON不得夹带模型Key或GitHub令牌',[false,false,false],ev(async () => {
-    D.settings.github={owner:'synthetic',repo:'fixture',path:'data.json',token:'SYNTHETIC_GH_TOKEN'};D.settings.ai={base:'https://model.invalid',key:'SYNTHETIC_AI_KEY',model:'fixture'};D.aiChat=[{role:'user',text:'SYNTHETIC_CHAT'}];renderSet();let payload='';
+    D.settings.github={owner:'synthetic',repo:'fixture',path:'data.json',token:'SYNTHETIC_GH_TOKEN'};D.settings.ai={base:'https://model.invalid',key:'SYNTHETIC_AI_KEY',model:'fixture'};D.aiChat=[{role:'user',text:'SYNTHETIC_CHAT'}];save(true);renderSet();let payload='';
     window.fetch=async(url,opt={})=>{if(opt.method==='PUT'){payload=b64decode(JSON.parse(opt.body).content);return new Response('{}');}return new Response('{}',{status:404});};
-    await doSync(true);return [payload.includes('SYNTHETIC_AI_KEY'),payload.includes('SYNTHETIC_GH_TOKEN'),payload.includes('SYNTHETIC_CHAT')];
+    await doSync(true);if(!payload)throw Error('Mock sync must actually upload data');return [payload.includes('SYNTHETIC_AI_KEY'),payload.includes('SYNTHETIC_GH_TOKEN'),payload.includes('SYNTHETIC_CHAT')];
   }));
   await test('N07','同步失败仍保留本地记录',[1,true],ev(async () => {
-    D.foods=[testFood()];quickAdd('测试鸡肉');D.settings.github={owner:'synthetic',repo:'fixture',path:'data.json',token:'synthetic'};renderSet();window.fetch=async()=>{throw Error('synthetic offline');};await doSync(true);
+    D.foods=[testFood()];quickAdd('测试鸡肉');D.settings.github={owner:'synthetic',repo:'fixture',path:'data.json',token:'synthetic'};save(true);renderSet();window.fetch=async()=>{throw Error('synthetic offline');};await doSync(true);
     return [JSON.parse(localStorage.getItem(LS_KEY)).days[curDate].meals.lunch.length,document.getElementById('syncState').textContent.includes('失败')];
   }));
   await test('U01','五个导航页面能切换',5,async p => {

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0F9D6C">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>健康追踪</title>
-<meta name="health-app-version" content="2.8.1">
+<meta name="health-app-version" content="2.8.2">
 <style>
 :root{
   --p:#10B981; --p-d:#059669; --p-dd:#047857; --p-l:#ECFDF5;
@@ -736,7 +736,38 @@ const DEFAULT_SUPPS = [
 ];
 
 /* ================= 状态 ================= */
+// Device settings use stable keys independent of health-data and app versions.
+const SETTINGS_KEY='ht_settings_v1', SETTINGS_BACKUP_KEY='ht_settings_backup_v1';
 let D = load();
+function readSettingsRecord(key){
+  try{const r=JSON.parse(localStorage.getItem(key));return r?.version===1&&r.settings&&typeof r.settings==='object'&&!Array.isArray(r.settings)?r:null;}catch{return null;}
+}
+function restoreDeviceSettings(d,onlyNewer=false){
+  const stored=readSettingsRecord(SETTINGS_KEY)||readSettingsRecord(SETTINGS_BACKUP_KEY);
+  const newer=(Number(stored?.updatedAt)||0)-(Number(d.settingsUpdatedAt)||0);
+  if(stored && (newer>0 || (!onlyNewer && newer===0))){
+    d.settings=JSON.parse(JSON.stringify(stored.settings));d.settingsUpdatedAt=stored.updatedAt;
+  }
+  // Recover a missing whole slot from the local pre-upgrade backup only once.
+  // Never mix an old provider's key into a newly entered provider configuration.
+  if(!stored&&!d.settingsUpdatedAt){
+    let old;try{old=JSON.parse(localStorage.getItem('ht_backup_before_v6'))?.settings;}catch{}
+    d.settings=d.settings||{};
+    for(const key of ['github','ai','aiVision','aiVoice']){
+      const fields=key==='github'?['owner','repo','token']:['base','key','model'];
+      if(old?.[key]&&fields.every(f=>!d.settings[key]?.[f])&&fields.some(f=>old[key][f]))d.settings[key]=JSON.parse(JSON.stringify(old[key]));
+    }
+  }
+}
+function persistDeviceSettings(d,settingsChanged=false){
+  if(!settingsChanged)restoreDeviceSettings(d,true);
+  const old=readSettingsRecord(SETTINGS_KEY),same=old&&JSON.stringify(old.settings)===JSON.stringify(d.settings);
+  const updatedAt=same?old.updatedAt:Math.max(Date.now(),Number(old?.updatedAt)||0,Number(d.settingsUpdatedAt)||0)+1;
+  const raw=JSON.stringify({version:1,updatedAt,settings:d.settings});
+  if(localStorage.getItem(SETTINGS_KEY)!==raw)localStorage.setItem(SETTINGS_KEY,raw);
+  d.settingsUpdatedAt=updatedAt;
+  if(localStorage.getItem(SETTINGS_BACKUP_KEY)!==raw)localStorage.setItem(SETTINGS_BACKUP_KEY,raw);
+}
 function seedFoods(){ return SEED_FOODS.map(f=>({name:f[0],cat:f[1],serv:f[2],servG:f[3],c:f[4],p:f[5],f:f[6],uses:0})); }
 
 function load(){
@@ -753,6 +784,7 @@ function load(){
   }
   d.profile = {...{height:177,birth:'2000-11-02',weight:90,bodyfat:null,activity:1.3,gender:'m',goal:'cut'},...d.profile};
   d.days=d.days||{}; d.weights=d.weights||[]; d.pending=d.pending||[]; d.recent=d.recent||[];
+  restoreDeviceSettings(d);
   d.settings=d.settings||{};
   d.settings.github={owner:'',repo:'',path:'data.json',token:'',...d.settings.github};
   for(const k of ['ai','aiVision','aiVoice']) d.settings[k]={base:'',key:'',model:'',...d.settings[k]};
@@ -782,6 +814,7 @@ function load(){
     if(deleted && entryTime(f)<=deleted.ts) f.updatedAt=deleted.ts+1;
   }
   d.ver=6;
+  try{persistDeviceSettings(d);}catch(e){alert('无法保存配置备份，启动已停止；原数据未清除，请先备份并释放存储空间。');throw e;}
   return d;
 }
 function tombNorm(arr){ return (Array.isArray(arr)?arr:[]).map(t=>typeof t==='string'?{n:t,ts:0}:t).filter(t=>t && typeof t.n==='string' && Number.isFinite(Number(t.ts))).map(t=>({n:t.n,ts:Math.max(0,Number(t.ts))})); }
@@ -831,9 +864,12 @@ function restoreLibraryEntry(key,index){
 function delLibraryFood(name){
   toast('从食物库删除 '+name+'？历史餐次仍保留。',{label:'确认删除',fn:()=>{deleteLibraryEntry('foods',name);renderFoodList();toast('已移到回收站，可恢复');}});
 }
-function save(){ localStorage.setItem(LS_KEY,JSON.stringify(D)); }
+function save(settingsChanged=false){
+  try{persistDeviceSettings(D,settingsChanged);localStorage.setItem(LS_KEY,JSON.stringify(D));}
+  catch(e){toast('保存失败，请先备份数据并检查浏览器存储空间');throw e;}
+}
 function publicData(){
-  const data=JSON.parse(JSON.stringify(D)); delete data.aiChat;
+  const data=JSON.parse(JSON.stringify(D)); delete data.aiChat;delete data.settingsUpdatedAt;
   if(data.settings){
     if(data.settings.github) delete data.settings.github.token;
     for(const k of ['ai','aiVision','aiVoice']) if(data.settings[k]) delete data.settings[k].key;
@@ -2392,11 +2428,12 @@ function saveProfile(){
   save(); renderSet(); renderToday(); renderTrend(); toast('已保存，配额方案已更新');
 }
 function saveAI(){
+  restoreDeviceSettings(D,true);
   const rd = id => document.getElementById(id).value.trim();
   D.settings.ai = {base:rd('aiBase'), key:rd('aiKey'), model:rd('aiModel')};
   D.settings.aiVision = {base:rd('viBase'), key:rd('viKey'), model:rd('viModel')};
   D.settings.aiVoice = {base:rd('voBase'), key:rd('voKey'), model:rd('voModel')};
-  save(); renderSet(); renderAiPage(); toast('已保存全部模型配置');
+  save(true); renderSet(); renderAiPage(); toast('已保存全部模型配置');
 }
 function exportData(){
   const blob = new Blob([JSON.stringify(publicData(),null,1)], {type:'application/json'});
@@ -2436,10 +2473,11 @@ function autoSync(){
   syncTimer = setTimeout(()=>doSync(true), 3000);
 }
 async function doSync(silent){
-  const g = D.settings.github;
+  restoreDeviceSettings(D);
+  const g = D.settings.github, previous=JSON.stringify(g);
   const o=document.getElementById('ghOwner'), r=document.getElementById('ghRepo'), t=document.getElementById('ghToken'), pa=document.getElementById('ghPath');
-  if(o) { g.owner=o.value.trim()||g.owner; g.repo=r.value.trim()||g.repo; g.token=t.value.trim()||g.token; g.path=pa.value.trim()||'data.json'; }
-  save();
+  if(o && !silent) { g.owner=o.value.trim()||g.owner; g.repo=r.value.trim()||g.repo; g.token=t.value.trim()||g.token; g.path=pa.value.trim()||'data.json'; }
+  save(JSON.stringify(g)!==previous);
   if(!ghConfigured()){ if(!silent) toast('先填写 GitHub 配置'); return; }
   if(syncBusy){ syncAgain = true; return; }  // 已在同步：标记结束后再跑一轮，避免并发409
   syncBusy = true;
