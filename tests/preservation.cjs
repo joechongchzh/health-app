@@ -80,8 +80,11 @@ async function check(id,name,fn){try{await fn();results.push({id,name,status:'PA
     });await p.waitForFunction(()=>!!navigator.serviceWorker.controller);await p.reload();assert.ok((await p.textContent('body')).includes('OLD V3 CACHE'));
     oldVersion=false;
     // The browser's normal registration update fetches the replacement worker.
-    await p.evaluate(async()=>{const r=await navigator.serviceWorker.getRegistration();await r.update();});
-    await p.waitForFunction(async()=>{const r=await navigator.serviceWorker.getRegistration();return !r.installing&&!r.waiting&&(await caches.keys()).includes('health-single-html-2.8.0');});
+    await p.evaluate(async()=>{
+      const old=navigator.serviceWorker.controller;
+      const changed=new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',()=>{if(navigator.serviceWorker.controller!==old)resolve();},{once:true}));
+      const r=await navigator.serviceWorker.getRegistration();await r.update();await changed;
+    });
     await p.reload();assert.equal(await p.locator('meta[name="health-app-version"]').getAttribute('content'),'2.8.0');
     const unchanged=()=>p.evaluate(async()=>[localStorage.getItem('preservation-probe'),await new Promise((resolve,reject)=>{const r=indexedDB.open('v3-preservation-probe');r.onerror=()=>reject(r.error);r.onsuccess=()=>{const db=r.result,q=db.transaction('records').objectStore('records').get('record');q.onsuccess=()=>{db.close();resolve(q.result);};};})]);
     assert.deepEqual(await unchanged(),['unchanged','unchanged']);await swctx.setOffline(true);await p.reload();assert.equal(await p.locator('meta[name="health-app-version"]').getAttribute('content'),'2.8.0');assert.deepEqual(await unchanged(),['unchanged','unchanged']);await swctx.close();
